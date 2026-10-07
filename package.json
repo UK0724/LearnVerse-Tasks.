@@ -1,0 +1,51 @@
+{
+  "name": "learnverse-tasks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx server/index.ts",
+    "build": "tsc --noEmit && vite build",
+    "build:lambda": "node scripts/build-lambda.mjs",
+    "test:lambda": "npm run build:lambda && node --env-file-if-exists=.env scripts/check-lambda.mjs",
+    "package:release": "pwsh -NoProfile -File scripts/package-release.ps1",
+    "start": "node --import tsx server/index.ts",
+    "test": "node --env-file-if-exists=.env --import tsx --test --test-isolation=none tests/*.test.ts",
+    "test:e2e": "playwright test",
+    "db": "docker compose up -d db",
+    "test:unit": "node --env-file-if-exists=.env --import tsx --test --test-isolation=none tests/domain.test.ts",
+    "db:stop": "docker compose stop db"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ssm": "^3.1146.0",
+    "@codegenie/serverless-express": "^5.0.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "mongodb": "^6.20.0",
+    "nodemailer": "^10.0.15",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.5.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.9",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
+}

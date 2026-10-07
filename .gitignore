@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+playwright-report/
+test-results/
+output/
+.playwright-cli/
+__pycache__/
+*.pyc
+.env.*
+!.env.example
+
+*.private.json

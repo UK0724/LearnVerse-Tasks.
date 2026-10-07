@@ -1,0 +1,780 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "LearnVerse Tasks: S3, Lambda and pay-as-you-go CloudFront; no WAF, NAT, EC2 or load balancer",
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "dev",
+        "prod"
+      ]
+    },
+    "ArtifactBucket": {
+      "Type": "String"
+    },
+    "ApiCodeKey": {
+      "Type": "String",
+      "AllowedPattern": "api/[a-f0-9]{64}\\.zip"
+    },
+    "MongoParameterName": {
+      "Type": "String",
+      "AllowedPattern": "/learnverse-tasks/(dev|prod)/mongodb-uri"
+    },
+    "AppOrigin": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "(|https://[a-z0-9.-]+)"
+    },
+    "OriginToken": {
+      "Type": "String",
+      "NoEcho": true,
+      "MinLength": 64,
+      "MaxLength": 64,
+      "AllowedPattern": "[a-f0-9]{64}"
+    },
+    "CustomDomainName": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "(|[a-z0-9-]+\\.abuk\\.in)"
+    },
+    "ViewerCertificateArn": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "(|arn:aws:acm:us-east-1:[0-9]{12}:certificate/[a-f0-9-]+)"
+    },
+    "DomainHostedZoneId": {
+      "Type": "String",
+      "Default": ""
+    },
+    "PublishDomainDns": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ]
+    },
+    "ActivateCustomDomain": {
+      "Type": "String",
+      "Default": "false",
+      "AllowedValues": [
+        "true",
+        "false"
+      ]
+    }
+  },
+  "Resources": {
+    "WebBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "AbortIncompleteUploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+              }
+            }
+          ]
+        },
+        "BucketName": {
+          "Fn::Sub": "learnverse-tasks-${Environment}-web-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    },
+    "ApiLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/learnverse-tasks-${Environment}-api"
+        },
+        "RetentionInDays": 7
+      }
+    },
+    "ApiRole": {
+      "Type": "AWS::IAM::Role",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "LogsAndMongoParameter",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/learnverse-tasks-${Environment}-api:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MongoParameterName}"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "ssm:GetParameter",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/learnverse-tasks/${Environment}/smtp"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ApiFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "DependsOn": "ApiLogGroup",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Sub": "learnverse-tasks-${Environment}-api"
+        },
+        "Runtime": "nodejs24.x",
+        "Architectures": [
+          "arm64"
+        ],
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiRole",
+            "Arn"
+          ]
+        },
+        "MemorySize": 256,
+        "Timeout": 20,
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ArtifactBucket"
+          },
+          "S3Key": {
+            "Ref": "ApiCodeKey"
+          }
+        },
+        "Environment": {
+          "Variables": {
+            "NODE_ENV": "production",
+            "COOKIE_SECURE": "true",
+            "MCP_ENABLED": "true",
+            "MONGODB_DATABASE": {
+              "Fn::Sub": "learnverse_tasks_${Environment}"
+            },
+            "MONGODB_PARAMETER": {
+              "Ref": "MongoParameterName"
+            },
+            "PUBLIC_ORIGIN": {
+              "Fn::If": [
+                "UseCanonicalDomain",
+                {
+                  "Fn::Sub": "https://${CustomDomainName}"
+                },
+                {
+                  "Ref": "AppOrigin"
+                }
+              ]
+            },
+            "ORIGIN_TOKEN": {
+              "Ref": "OriginToken"
+            },
+            "RESET_EMAIL_TRANSPORT": "smtp",
+            "RESET_EMAIL_FROM": "learnverse02@gmail.com",
+            "SMTP_HOST": "smtp.gmail.com",
+            "SMTP_PORT": "465",
+            "SMTP_PARAMETER": {
+              "Fn::Sub": "/learnverse-tasks/${Environment}/smtp"
+            }
+          }
+        }
+      }
+    },
+    "ApiUrl": {
+      "Type": "AWS::Lambda::Url",
+      "Properties": {
+        "TargetFunctionArn": {
+          "Fn::GetAtt": [
+            "ApiFunction",
+            "Arn"
+          ]
+        },
+        "AuthType": "NONE",
+        "InvokeMode": "BUFFERED"
+      }
+    },
+    "ApiUrlPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ApiFunction"
+        },
+        "Action": "lambda:InvokeFunctionUrl",
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "ApiInvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "ApiFunction"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    },
+    "WebOac": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": {
+            "Fn::Sub": "learnverse-tasks-${Environment}-s3"
+          },
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "SpaRewrite": {
+      "Type": "AWS::CloudFront::Function",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "learnverse-tasks-${Environment}-spa"
+        },
+        "AutoPublish": true,
+        "FunctionConfig": {
+          "Comment": "Rewrite HTML navigation only; preserve missing assets and API errors",
+          "Runtime": "cloudfront-js-2.0"
+        },
+        "FunctionCode": {
+          "Fn::Sub": [
+            "function handler(event) { var r=event.request; var accept=r.headers.accept; if ((r.method==='GET'||r.method==='HEAD') && accept && accept.value.indexOf('text/html')!==-1 && r.uri.split('/').pop().indexOf('.')===-1 && r.uri!=='/api' && r.uri.indexOf('/api/')!==0) { var domain='${CanonicalDomainName}'; if(domain && r.headers.host.value!==domain) { var q=[]; Object.keys(r.querystring||{}).forEach(function(k){var v=r.querystring[k]; (v.multiValue||[v]).forEach(function(x){q.push(k+'='+x.value);});}); return {statusCode:302,statusDescription:'Found',headers:{location:{value:'https://'+domain+r.uri+(q.length?'?'+q.join('&'):'')},'cache-control':{value:'no-store'}}}; } r.uri='/index.html'; } return r; }",
+            {
+              "CanonicalDomainName": {
+                "Fn::If": [
+                  "UseCanonicalDomain",
+                  {
+                    "Ref": "CustomDomainName"
+                  },
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "WebHeaders": {
+      "Type": "AWS::CloudFront::ResponseHeadersPolicy",
+      "Properties": {
+        "ResponseHeadersPolicyConfig": {
+          "Name": {
+            "Fn::Sub": "learnverse-tasks-${Environment}-web"
+          },
+          "SecurityHeadersConfig": {
+            "ContentTypeOptions": {
+              "Override": true
+            },
+            "FrameOptions": {
+              "FrameOption": "DENY",
+              "Override": true
+            },
+            "ReferrerPolicy": {
+              "ReferrerPolicy": "same-origin",
+              "Override": true
+            },
+            "StrictTransportSecurity": {
+              "AccessControlMaxAgeSec": 31536000,
+              "IncludeSubdomains": true,
+              "Override": true
+            },
+            "ContentSecurityPolicy": {
+              "ContentSecurityPolicy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+              "Override": true
+            }
+          }
+        }
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": {
+            "Fn::Sub": "LearnVerse Tasks ${Environment} - pay-as-you-go, no WAF"
+          },
+          "Enabled": true,
+          "DefaultRootObject": "index.html",
+          "HttpVersion": "http2and3",
+          "IPV6Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "WebACLId": "",
+          "ViewerCertificate": {
+            "Fn::If": [
+              "HasCustomDomain",
+              {
+                "AcmCertificateArn": {
+                  "Ref": "ViewerCertificateArn"
+                },
+                "SslSupportMethod": "sni-only",
+                "MinimumProtocolVersion": "TLSv1.2_2021"
+              },
+              {
+                "CloudFrontDefaultCertificate": true
+              }
+            ]
+          },
+          "Origins": [
+            {
+              "Id": "web",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "WebBucket",
+                  "RegionalDomainName"
+                ]
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": {
+                "Ref": "WebOac"
+              }
+            },
+            {
+              "Id": "api",
+              "DomainName": {
+                "Fn::Select": [
+                  2,
+                  {
+                    "Fn::Split": [
+                      "/",
+                      {
+                        "Fn::GetAtt": [
+                          "ApiUrl",
+                          "FunctionUrl"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "CustomOriginConfig": {
+                "OriginProtocolPolicy": "https-only",
+                "OriginSSLProtocols": [
+                  "TLSv1.2"
+                ],
+                "OriginReadTimeout": 25
+              },
+              "OriginCustomHeaders": [
+                {
+                  "HeaderName": "X-Learnverse-Origin",
+                  "HeaderValue": {
+                    "Ref": "OriginToken"
+                  }
+                }
+              ]
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "web",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD",
+              "OPTIONS"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+            "ResponseHeadersPolicyId": {
+              "Ref": "WebHeaders"
+            },
+            "FunctionAssociations": [
+              {
+                "EventType": "viewer-request",
+                "FunctionARN": {
+                  "Fn::GetAtt": [
+                    "SpaRewrite",
+                    "FunctionARN"
+                  ]
+                }
+              }
+            ]
+          },
+          "CacheBehaviors": [
+            {
+              "PathPattern": "/api/*",
+              "TargetOriginId": "api",
+              "ViewerProtocolPolicy": "https-only",
+              "AllowedMethods": [
+                "GET",
+                "HEAD",
+                "OPTIONS",
+                "PUT",
+                "PATCH",
+                "POST",
+                "DELETE"
+              ],
+              "CachedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "Compress": true,
+              "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+              "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+            },
+            {
+              "PathPattern": "/api",
+              "TargetOriginId": "api",
+              "ViewerProtocolPolicy": "https-only",
+              "AllowedMethods": [
+                "GET",
+                "HEAD",
+                "OPTIONS",
+                "PUT",
+                "PATCH",
+                "POST",
+                "DELETE"
+              ],
+              "CachedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "Compress": true,
+              "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+              "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+            }
+          ],
+          "Aliases": {
+            "Fn::If": [
+              "HasCustomDomain",
+              [
+                {
+                  "Ref": "CustomDomainName"
+                }
+              ],
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "WebBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "WebBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": {
+                "Fn::Sub": "${WebBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+                  }
+                }
+              }
+            },
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "WebBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${WebBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "DomainRecordA": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "PublishDns",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "DomainHostedZoneId"
+        },
+        "Name": {
+          "Ref": "CustomDomainName"
+        },
+        "Type": "A",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    "DomainRecordAAAA": {
+      "Type": "AWS::Route53::RecordSet",
+      "Condition": "PublishDns",
+      "Properties": {
+        "HostedZoneId": {
+          "Ref": "DomainHostedZoneId"
+        },
+        "Name": {
+          "Ref": "CustomDomainName"
+        },
+        "Type": "AAAA",
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "Distribution",
+              "DomainName"
+            ]
+          },
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "EvaluateTargetHealth": false
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "WebBucket": {
+      "Value": {
+        "Ref": "WebBucket"
+      }
+    },
+    "DistributionId": {
+      "Value": {
+        "Ref": "Distribution"
+      }
+    },
+    "WebsiteUrl": {
+      "Value": {
+        "Fn::If": [
+          "HasCustomDomain",
+          {
+            "Fn::Sub": "https://${CustomDomainName}"
+          },
+          {
+            "Fn::Sub": "https://${Distribution.DomainName}"
+          }
+        ]
+      }
+    },
+    "ApiFunction": {
+      "Value": {
+        "Ref": "ApiFunction"
+      }
+    },
+    "ApiUrl": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ApiUrl",
+          "FunctionUrl"
+        ]
+      }
+    },
+    "McpUrl": {
+      "Value": {
+        "Fn::If": [
+          "HasCustomDomain",
+          {
+            "Fn::Sub": "https://${CustomDomainName}/api/v1/mcp"
+          },
+          {
+            "Fn::Sub": "https://${Distribution.DomainName}/api/v1/mcp"
+          }
+        ]
+      }
+    },
+    "CloudFrontUrl": {
+      "Value": {
+        "Fn::Sub": "https://${Distribution.DomainName}"
+      }
+    }
+  },
+  "Conditions": {
+    "HasCustomDomain": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "CustomDomainName"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "PublishDns": {
+      "Fn::And": [
+        {
+          "Condition": "HasCustomDomain"
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "PublishDomainDns"
+            },
+            "true"
+          ]
+        }
+      ]
+    },
+    "UseCanonicalDomain": {
+      "Fn::And": [
+        {
+          "Condition": "HasCustomDomain"
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ActivateCustomDomain"
+            },
+            "true"
+          ]
+        }
+      ]
+    }
+  },
+  "Rules": {
+    "RequireCertificate": {
+      "RuleCondition": {
+        "Fn::Not": [
+          {
+            "Fn::Equals": [
+              {
+                "Ref": "CustomDomainName"
+              },
+              ""
+            ]
+          }
+        ]
+      },
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "ViewerCertificateArn"
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "AssertDescription": "A custom domain requires a us-east-1 ACM certificate."
+        }
+      ]
+    },
+    "RequireHostedZone": {
+      "RuleCondition": {
+        "Fn::Equals": [
+          {
+            "Ref": "PublishDomainDns"
+          },
+          "true"
+        ]
+      },
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Equals": [
+                  {
+                    "Ref": "DomainHostedZoneId"
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "AssertDescription": "DNS publication requires the existing hosted zone."
+        }
+      ]
+    }
+  }
+}

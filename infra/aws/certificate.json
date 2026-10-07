@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "LearnVerse Tasks public non-exportable TLS certificate for CloudFront, us-east-1",
+  "Parameters": {
+    "HostedZoneId": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Certificate": {
+      "Type": "AWS::CertificateManager::Certificate",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "DomainName": "tasks.abuk.in",
+        "ValidationMethod": "DNS",
+        "DomainValidationOptions": [
+          {
+            "DomainName": "tasks.abuk.in",
+            "HostedZoneId": {
+              "Ref": "HostedZoneId"
+            }
+          }
+        ],
+        "CertificateTransparencyLoggingPreference": "ENABLED"
+      }
+    }
+  },
+  "Outputs": {
+    "CertificateArn": {
+      "Value": {
+        "Ref": "Certificate"
+      }
+    }
+  }
+}

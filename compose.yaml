@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mongo:7.0.24
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - learnverse_mongodb_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  learnverse_mongodb_data:
+    name: learnverse_mongodb_data
