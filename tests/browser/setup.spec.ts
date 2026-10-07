@@ -1,44 +1,61 @@
 import { test, expect, Page } from "@playwright/test";
 async function signUp(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
   await page
     .getByLabel("Email", { exact: true })
     .fill(`setup-${Date.now()}-${Math.random()}@example.test`);
   await page
     .getByLabel("Password", { exact: true })
     .fill("secure setup test password");
-  await page.getByLabel("Confirm password", { exact: true }).fill("secure setup test password");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("secure setup test password");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Your work, in perspective" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 }
-test("fictional sample projects populate the overview and survive refresh", async ({
+test("an empty workspace starts with one project action and no sample or filter clutter", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await signUp(page);
-  await page
-    .getByRole("button", { name: "Load fictional samples", exact: true })
-    .click();
   await expect(
-    page.getByRole("button", { name: "MA Mahabharatham" }),
+    page.getByRole("heading", { name: "Create your first project" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "MA Mahabharatham" }).click();
-  await expect(page.getByRole("listbox", { name: "Project", exact: true }).getByRole("option")).toHaveCount(4);
-  await page.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Load fictional samples" }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Search tasks", { exact: true })).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await page.getByLabel("Project name").fill("My project");
+  await page.getByLabel("Key prefix").fill("WORK");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "MA Mahabharatham" }),
+    page.getByRole("button", { name: "Open navigation", exact: true }),
   ).toBeVisible();
-  await page.screenshot({ path: "docs/overview-desktop.png", fullPage: true });
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Your work, in perspective" }),
+    page.getByRole("button", { name: "WO My project", exact: true }),
   ).toBeVisible();
-  await page.screenshot({ path: "docs/overview-mobile.png", fullPage: true });
+  await page
+    .getByRole("button", { name: "Close navigation", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 test("integration setup shows explicit scopes, a one-time secret, and revocation controls", async ({
   page,

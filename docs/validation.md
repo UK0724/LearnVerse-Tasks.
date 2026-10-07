@@ -25,3 +25,11 @@ The owner confirmed receipt of the earlier recovery email. SMTP acceptance is ve
 Live tests use isolated QA accounts and projects with random passwords held only in memory. These workspaces remain because account deletion is not implemented. Test sessions are logged out and tokens revoked; browser QA fixtures remain separately for UI verification. Existing user workspaces are never seeded or reset. Local integration databases are removed after tests.
 
 Each account's workspace occupies one MongoDB document, bounded by MongoDB's 16 MB document limit and intended for small personal workspaces. See [release results](aws-release.md), [password recovery](password-reset.md) and the [AWS runbook](../infra/aws/README.md).
+
+## Mobile layout follow-up
+
+The frontend-only update passed TypeScript/Vite build and Codex-browser checks at 320 and 390 px. Empty onboarding has no sample option or irrelevant filters/zero summaries. Populated views have a collapsed filter panel, active-filter count/reset and full-width date input; very narrow screens use one filter column. Navigation uses a drawer with focus containment, Escape dismissal and focus restoration. Task forms use one column. Card bodies allow touch scrolling; the grip retains touch dragging, and desktop body dragging remains available.
+
+Live dev and production verified exact new assets, MIME, HTTPS/deep links, missing assets, DB health, API/MCP anonymous rejection, no-store responses and no WAF. Production UI checks passed project/task creation, native date-filter changes, reset, status changes persisting after reload, task details, board scrolling and desktop layout. Both phone widths showed no page overflow; no console errors were captured. Screenshots and fixture details are recorded in `output/mobile-live-check.json` and [mobile notes](mobile-layout.md).
+
+The backend, dependencies and CloudFormation resources are unchanged; the earlier 18 backend/domain/security/email tests remain the validation for that immutable API artifact. Updated browser tests are maintained but were not executed through a terminal browser. Native iPhone Safari was not controlled; these are responsive viewport checks in the Codex browser. Test account/project/task fixtures remain isolated, and their sessions are logged out after checks.

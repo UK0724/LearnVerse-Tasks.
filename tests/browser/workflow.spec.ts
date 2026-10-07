@@ -3,20 +3,22 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
   await page
     .getByLabel("Email", { exact: true })
     .fill(`browser-${Date.now()}@example.test`);
   await page
     .getByLabel("Password", { exact: true })
     .fill("browser secure password");
-  await page.getByLabel("Confirm password", { exact: true }).fill("browser secure password");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("browser secure password");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Your work, in perspective" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   await page
     .getByRole("button", { name: "Create project", exact: true })
     .click();

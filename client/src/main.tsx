@@ -94,6 +94,8 @@ function Card({
       }
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest(".handle")) return;
+        // Touch users scroll from the card body and drag from its grip.
+        if (event.pointerType === "touch") return;
         d.listeners?.onPointerDown?.(event);
       }}
     >
@@ -140,6 +142,8 @@ function Column({
   );
 }
 function App() {
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Item | null>(null);
   const [account, setAccount] = useState("");
   const [state, setState] = useState<Item | null>(null),
@@ -171,8 +175,14 @@ function App() {
       const s = await api("workspace");
       setState(s);
       setAuth(true);
-      api("auth/me").then(user => setAccount(user.email)).catch(() => {});
-      setProjectId(current => s.projects.some((p: Item) => p.id === current) ? current : (s.projects[0]?.id ?? ""));
+      api("auth/me")
+        .then((user) => setAccount(user.email))
+        .catch(() => {});
+      setProjectId((current) =>
+        s.projects.some((p: Item) => p.id === current)
+          ? current
+          : (s.projects[0]?.id ?? ""),
+      );
     } catch (e) {
       if ((e as Error).message === "Please sign in") {
         setAuth(false);
@@ -186,20 +196,43 @@ function App() {
     load();
     const closeAccount = (event: Event) => {
       const menu = document.querySelector<HTMLDetailsElement>(".accountmenu");
-      if (menu && (event instanceof KeyboardEvent ? event.key === "Escape" : !menu.contains(event.target as Node))) menu.open = false;
+      if (
+        menu &&
+        (event instanceof KeyboardEvent
+          ? event.key === "Escape"
+          : !menu.contains(event.target as Node))
+      )
+        menu.open = false;
     };
     document.addEventListener("pointerdown", closeAccount);
     document.addEventListener("keydown", closeAccount);
-    return () => { document.removeEventListener("pointerdown", closeAccount); document.removeEventListener("keydown", closeAccount); };
+    return () => {
+      document.removeEventListener("pointerdown", closeAccount);
+      document.removeEventListener("keydown", closeAccount);
+    };
+  }, []);
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 650px)");
+    const changed = () => {
+      if (!mobile.matches) setNavigationOpen(false);
+    };
+    mobile.addEventListener("change", changed);
+    return () => mobile.removeEventListener("change", changed);
   }, []);
   useEffect(() => {
     if (!state || !auth) return;
     const openLink = () => {
       const match = /^\/tasks\/([0-9a-f-]{36})\/?$/i.exec(location.pathname);
-      if (!match) { setSelected(null); return; }
+      if (!match) {
+        setSelected(null);
+        return;
+      }
       const task = state.tasks.find((t: Item) => t.id === match[1]);
-      if (task) { setProjectId(task.projectId); setView(task.archived ? "archive" : "board"); setSelected(task); }
-      else setError("This task is unavailable in your workspace.");
+      if (task) {
+        setProjectId(task.projectId);
+        setView(task.archived ? "archive" : "board");
+        setSelected(task);
+      } else setError("This task is unavailable in your workspace.");
     };
     openLink();
     window.addEventListener("popstate", openLink);
@@ -210,14 +243,17 @@ function App() {
     setSelected(task);
   }
   function closeTask() {
-    if (location.pathname.startsWith("/tasks/")) history.replaceState(null, "", "/");
+    if (location.pathname.startsWith("/tasks/"))
+      history.replaceState(null, "", "/");
     setSelected(null);
   }
-  const dialogOpen = !!modal || !!selected;
+  const dialogOpen = !!modal || !!selected || navigationOpen;
   useEffect(() => {
     if (!dialogOpen) return;
     const previous = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    const dialog = document.querySelector<HTMLElement>(
+      navigationOpen ? "#workspace-navigation" : '[role="dialog"]',
+    );
     if (!dialog) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -230,6 +266,7 @@ function App() {
     focusable()[0]?.focus();
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        setNavigationOpen(false);
         setModal("");
         closeTask();
         event.preventDefault();
@@ -253,7 +290,7 @@ function App() {
       document.body.style.overflow = previousOverflow;
       if (previous?.isConnected) previous.focus();
     };
-  }, [dialogOpen, modal]);
+  }, [dialogOpen, modal, navigationOpen]);
 
   async function mutate(action: string, data: Item, optimistic?: Item) {
     if (!state || saving) return;
@@ -289,8 +326,36 @@ function App() {
       </main>
     );
   if (!auth || location.pathname === "/reset-password")
-    return <Authentication request={api} signedIn={load} resetDone={() => { setAuth(false); setState(null); setAccount(""); }} />;
+    return (
+      <Authentication
+        request={api}
+        signedIn={load}
+        resetDone={() => {
+          setAuth(false);
+          setState(null);
+          setAccount("");
+        }}
+      />
+    );
   if (!state) return <p>Loading workspace…</p>;
+  const activeFilters = [
+    priority,
+    statusFilter,
+    label,
+    sprintFilter,
+    due,
+    sort !== "manual",
+    view === "overview" && projectFilter,
+  ].filter(Boolean).length;
+  const resetFilters = () => {
+    setPriority("");
+    setStatusFilter("");
+    setLabel("");
+    setSprintFilter("");
+    setDue("");
+    setSort("manual");
+    setProjectFilter("");
+  };
   const project = state.projects.find((p: Item) => p.id === projectId),
     statuses = project?.statuses ?? [],
     tasks = state.tasks as Item[],
@@ -390,14 +455,33 @@ function App() {
   }
   return (
     <div className="shell">
-      <aside>
+      {navigationOpen && (
+        <button
+          className="navigationbackdrop"
+          aria-label="Dismiss navigation"
+          tabIndex={-1}
+          onClick={() => setNavigationOpen(false)}
+        />
+      )}
+      <aside
+        id="workspace-navigation"
+        className={navigationOpen ? "navigation-open" : ""}
+        aria-label="Workspace navigation"
+      >
+        <button
+          className="navigationclose secondary"
+          aria-label="Close navigation"
+          onClick={() => setNavigationOpen(false)}
+        >
+          ×
+        </button>
         <a className="brand" href="#">
           L{" "}
           <span>
             LearnVerse<small>TASKS</small>
           </span>
         </a>
-        <nav>
+        <nav aria-label="Workspace views">
           {[
             ["overview", "◈", "Overview"],
             ["board", "▦", "Board"],
@@ -411,6 +495,7 @@ function App() {
               key={key}
               className={view === key ? "active" : ""}
               onClick={() => {
+                setNavigationOpen(false);
                 setView(key);
                 setStatusFilter("");
                 setSprintFilter("");
@@ -422,32 +507,102 @@ function App() {
         </nav>
         <div className="projectnav">
           <small>PROJECT</small>
-          <button className="chosen" onClick={() => setModal("projects")}>
-            <span>{project?.prefix.slice(0, 2) ?? "◈"}</span>{project?.name ?? "Choose a project"}<b aria-hidden="true">⌄</b>
+          <button
+            className="chosen"
+            onClick={() => {
+              setNavigationOpen(false);
+              setModal("projects");
+            }}
+          >
+            <span>{project?.prefix.slice(0, 2) ?? "◈"}</span>
+            {project?.name ?? "Choose a project"}
+            <b aria-hidden="true">⌄</b>
           </button>
-          <button onClick={() => setModal("project")}>＋ New project</button>
+          <button
+            onClick={() => {
+              setNavigationOpen(false);
+              setModal("project");
+            }}
+          >
+            ＋ New project
+          </button>
         </div>
       </aside>
-      <main>
+      <main inert={navigationOpen || undefined}>
         <header>
-          <span>
-            Workspace /{" "}
-            {view === "overview"
-              ? "Your focus"
-              : (project?.name ?? "Choose a project")}
-          </span>
-          <div className="headeraccount"><span role="status">
-            {saving ? "Saving…" : message || "Private workspace"}
-          </span><details className="accountmenu">
-            <summary aria-label="Account menu" className="avatar">{account.slice(0, 1).toUpperCase() || "U"}</summary>
-            <div className="accountdropdown"><strong>{account || "Your account"}</strong>
-              <button className="secondary" onClick={e => { e.currentTarget.closest("details")?.removeAttribute("open"); setView("settings"); }}>Settings</button>
-              <button className="secondary" onClick={async () => {
-                try { await api("auth/logout", { method: "POST" }); setAuth(false); setState(null); closeTask(); setAccount(""); }
-                catch (e) { setError((e as Error).message); }
-              }}>Sign out</button>
-            </div>
-          </details></div>
+          <div className="workspacecontext">
+            <button
+              className="navigationtoggle secondary"
+              aria-label="Open navigation"
+              aria-expanded={navigationOpen}
+              aria-controls="workspace-navigation"
+              onClick={() => setNavigationOpen(true)}
+            >
+              <svg
+                aria-hidden="true"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <span className="mobilebrand">
+              <b>L</b> Tasks
+            </span>
+            <span className="breadcrumb">
+              Workspace /{" "}
+              {view === "overview"
+                ? "Your focus"
+                : (project?.name ?? "Choose a project")}
+            </span>
+          </div>
+          <div className="headeraccount">
+            <span
+              role="status"
+              className={
+                saving || message ? "savestatus hasactivity" : "savestatus"
+              }
+            >
+              {saving ? "Saving…" : message || "Private workspace"}
+            </span>
+            <details className="accountmenu">
+              <summary aria-label="Account menu" className="avatar">
+                {account.slice(0, 1).toUpperCase() || "U"}
+              </summary>
+              <div className="accountdropdown">
+                <strong>{account || "Your account"}</strong>
+                <button
+                  className="secondary"
+                  onClick={(e) => {
+                    e.currentTarget.closest("details")?.removeAttribute("open");
+                    setView("settings");
+                  }}
+                >
+                  Settings
+                </button>
+                <button
+                  className="secondary"
+                  onClick={async () => {
+                    try {
+                      await api("auth/logout", { method: "POST" });
+                      setAuth(false);
+                      setState(null);
+                      closeTask();
+                      setAccount("");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    }
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            </details>
+          </div>
         </header>
         {error && (
           <div className="error" role="alert">
@@ -460,27 +615,37 @@ function App() {
             <small>LEARNVERSE TASKS</small>
             <h1>
               {view === "overview"
-                ? "Your work, in perspective"
+                ? "Overview"
                 : view === "board"
                   ? (project?.name ?? "Project board")
                   : view.charAt(0).toUpperCase() + view.slice(1)}
             </h1>
             <p>
               {view === "overview"
-                ? "A little clarity for your next big thing."
+                ? "Your projects and next steps."
                 : "Plan thoughtfully. Keep moving."}
             </p>
           </div>
           <div className="actions">
-            {project && ["board", "backlog"].includes(view) && <button className="secondary" disabled={project.archived || saving} onClick={() => setModal("import")}>Import tasks</button>}
-            {project && !["settings", "integrations"].includes(view) && (
+            {project && ["board", "backlog"].includes(view) && (
               <button
-                onClick={() => setModal("task")}
-                disabled={project.archived}
+                className="secondary"
+                disabled={project.archived || saving}
+                onClick={() => setModal("import")}
               >
-                ＋ Create task
+                Import tasks
               </button>
             )}
+            {project &&
+              !["settings", "integrations"].includes(view) &&
+              (view !== "overview" || !!state.tasks.length) && (
+                <button
+                  onClick={() => setModal("task")}
+                  disabled={project.archived}
+                >
+                  ＋ Create task
+                </button>
+              )}
             {project && view === "board" && (
               <button
                 className="secondary"
@@ -505,107 +670,163 @@ function App() {
             )}
           </div>
         </div>
-        {!state.projects.length && (
+        {!state.projects.length &&
+          !["settings", "integrations"].includes(view) && (
+            <section className="welcome">
+              <div className="welcomeicon" aria-hidden="true">
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <path d="M12 11v6M9 14h6" />
+                </svg>
+              </div>
+              <h2>Create your first project</h2>
+              <p>
+                Bring your tasks, priorities and sprints together in one place.
+              </p>
+              <button onClick={() => setModal("project")}>
+                Create project
+              </button>
+              <small>Private to your account.</small>
+            </section>
+          )}
+        {!!state.tasks.length &&
+          ["overview", "board", "backlog", "archive"].includes(view) && (
+            <div className="filters">
+              <div className="filtersearch">
+                <input
+                  aria-label="Search tasks"
+                  placeholder="Search tasks…"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                />
+                <button
+                  className="filtertoggle secondary"
+                  aria-expanded={filtersOpen}
+                  aria-controls="task-filter-controls"
+                  onClick={() => setFiltersOpen((open) => !open)}
+                >
+                  Filters{activeFilters > 0 && <span>{activeFilters}</span>}
+                  <span aria-hidden="true">{filtersOpen ? "⌃" : "⌄"}</span>
+                </button>
+                {activeFilters > 0 && (
+                  <button className="filterreset" onClick={resetFilters}>
+                    Reset filters
+                  </button>
+                )}
+              </div>
+              <div
+                id="task-filter-controls"
+                className={"filtercontrols" + (filtersOpen ? " expanded" : "")}
+              >
+                <select
+                  aria-label="Project filter"
+                  value={view === "overview" ? projectFilter : projectId}
+                  onChange={(e) => {
+                    if (view === "overview") setProjectFilter(e.target.value);
+                    else setProjectId(e.target.value);
+                    setStatusFilter("");
+                    setSprintFilter("");
+                  }}
+                >
+                  {view === "overview" && (
+                    <option value="">All projects</option>
+                  )}
+                  {state.projects.map((p: Item) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Priority filter"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option value="">All priorities</option>
+                  {["urgent", "high", "medium", "low"].map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Status filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All statuses</option>
+                  {filterStatuses.map((s: Item) => (
+                    <option value={s.id} key={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  aria-label="Label filter"
+                  placeholder="Label"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                />
+                <select
+                  aria-label="Sprint filter"
+                  value={sprintFilter}
+                  onChange={(e) => setSprintFilter(e.target.value)}
+                >
+                  <option value="">All sprints</option>
+                  <option value="none">Unscheduled</option>
+                  {filterSprints.map((s: Item) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  aria-label="Sort"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                >
+                  <option value="manual">Manual order</option>
+                  <option value="priority">Priority</option>
+                  <option value="due">Due date</option>
+                </select>
+                <label className="datefilter">
+                  Due before
+                  <input
+                    aria-label="Due before"
+                    type="date"
+                    value={due}
+                    onChange={(e) => setDue(e.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        {view === "overview" && project && !state.tasks.length && (
           <section className="welcome">
-            <h2>Your next chapter starts here</h2>
-            <p>Create a project or explore four fictional sample projects.</p>
-            <button onClick={() => setModal("project")}>Create project</button>
-            <button
-              className="secondary"
-              disabled={saving}
-              onClick={() => mutate("sample.seed", {})}
-            >
-              Load fictional samples
-            </button>
+            <div className="welcomeicon" aria-hidden="true">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M8 6h13M8 12h13M8 18h13M3 6l1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2" />
+              </svg>
+            </div>
+            <h2>Add your first task</h2>
+            <p>Turn your next step into a task in {project.name}.</p>
+            <button onClick={() => setModal("task")}>Create task</button>
           </section>
         )}
-        {["overview", "board", "backlog", "archive"].includes(view) && (
-          <div className="filters">
-            <input
-              aria-label="Search tasks"
-              placeholder="Search title, description, or key…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <select
-              aria-label="Project filter"
-              value={view === "overview" ? projectFilter : projectId}
-              onChange={(e) => {
-                if (view === "overview") setProjectFilter(e.target.value);
-                else setProjectId(e.target.value);
-                setStatusFilter("");
-                setSprintFilter("");
-              }}
-            >
-              {view === "overview" && <option value="">All projects</option>}
-              {state.projects.map((p: Item) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Priority filter"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-            >
-              <option value="">All priorities</option>
-              {["urgent", "high", "medium", "low"].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-            <select
-              aria-label="Status filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All statuses</option>
-              {filterStatuses.map((s: Item) => (
-                <option value={s.id} key={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <input
-              aria-label="Label filter"
-              placeholder="Label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-            />
-            <select
-              aria-label="Sprint filter"
-              value={sprintFilter}
-              onChange={(e) => setSprintFilter(e.target.value)}
-            >
-              <option value="">All sprints</option>
-              <option value="none">Unscheduled</option>
-              {filterSprints.map((s: Item) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <label className="datefilter">
-              Due before
-              <input
-                aria-label="Due before"
-                type="date"
-                value={due}
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </label>
-            <select
-              aria-label="Sort"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              <option value="manual">Manual order</option>
-              <option value="priority">Priority</option>
-              <option value="due">Due date</option>
-            </select>
-          </div>
-        )}
-        {view === "overview" && (
+        {view === "overview" && !!state.tasks.length && (
           <>
             <div className="stats">
               {[
@@ -708,9 +929,15 @@ function App() {
         )}
         {view === "board" && project && (
           <>
-            <p className="hint">
-              Drag a card or focus its grip and press Space, arrow keys, then
-              Space. Task details also offer “Move to status”.{" "}
+            <p className="hint boardhint">
+              <span className="desktopdraghint">
+                Drag a card or focus its grip and press Space, arrow keys, then
+                Space. Task details also offer “Move to status”.
+              </span>
+              <span className="mobiledraghint">
+                Swipe to browse columns. Use a card’s grip to drag, or tap it to
+                change status.
+              </span>{" "}
               {sort !== "manual" && "Reordering disabled for this sort."}
             </p>
             <DndContext
@@ -869,7 +1096,20 @@ function App() {
           </>
         )}
         {view === "integrations" && <Integrations />}
-        {view === "settings" && <AccountSettings email={account} request={api} changed={() => { setAuth(false); setState(null); setAccount(""); setView("overview"); setMessage("Password updated. Sign in again."); closeTask(); }} />}
+        {view === "settings" && (
+          <AccountSettings
+            email={account}
+            request={api}
+            changed={() => {
+              setAuth(false);
+              setState(null);
+              setAccount("");
+              setView("overview");
+              setMessage("Password updated. Sign in again.");
+              closeTask();
+            }}
+          />
+        )}
         {view === "activity" && (
           <section className="panel">
             <h2>Workspace history</h2>
@@ -904,11 +1144,21 @@ function App() {
               </button>
               <small>{selected.key}</small>
               <h2>{selected.title}</h2>
-              <button className="secondary" onClick={async () => {
-                const url = new URL(`/tasks/${selected.id}`, location.origin).href;
-                try { await navigator.clipboard.writeText(url); setMessage("Task link copied"); }
-                catch { setMessage("Copy the task link from your address bar"); }
-              }}>Copy task link</button>
+              <button
+                className="secondary"
+                onClick={async () => {
+                  const url = new URL(`/tasks/${selected.id}`, location.origin)
+                    .href;
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setMessage("Task link copied");
+                  } catch {
+                    setMessage("Copy the task link from your address bar");
+                  }
+                }}
+              >
+                Copy task link
+              </button>
               <ReactMarkdown>
                 {selected.description || "No description yet."}
               </ReactMarkdown>
@@ -997,12 +1247,42 @@ function App() {
                   )[modal]
                 }
               </h2>
-              {modal === "projects" && <SearchPicker label="Project" allowNone={false} items={state.projects.map((p: Item) => ({ id: p.id, name: `${p.name}${p.archived ? " (archived)" : ""}` }))} value={projectId} onChange={id => {
-                closeTask(); setProjectId(id); setView("board"); setStatusFilter(""); setSprintFilter(""); setModal("");
-              }} />}
-              {modal === "import" && project && <Suspense fallback={<p role="status">Loading import…</p>}><BulkImport project={project} tasks={tasks} saving={saving} submit={async rows => {
-                const ok = await mutate("task.import", { projectId, rows }); if (ok) setModal(""); return ok;
-              }} /></Suspense>}
+              {modal === "projects" && (
+                <SearchPicker
+                  label="Project"
+                  allowNone={false}
+                  items={state.projects.map((p: Item) => ({
+                    id: p.id,
+                    name: `${p.name}${p.archived ? " (archived)" : ""}`,
+                  }))}
+                  value={projectId}
+                  onChange={(id) => {
+                    closeTask();
+                    setProjectId(id);
+                    setView("board");
+                    setStatusFilter("");
+                    setSprintFilter("");
+                    setModal("");
+                  }}
+                />
+              )}
+              {modal === "import" && project && (
+                <Suspense fallback={<p role="status">Loading import…</p>}>
+                  <BulkImport
+                    project={project}
+                    tasks={tasks}
+                    saving={saving}
+                    submit={async (rows) => {
+                      const ok = await mutate("task.import", {
+                        projectId,
+                        rows,
+                      });
+                      if (ok) setModal("");
+                      return ok;
+                    }}
+                  />
+                </Suspense>
+              )}
               {modal === "task" && (
                 <TaskForm
                   project={project}
@@ -1188,7 +1468,14 @@ function TaskForm({
       <div className="formgrid">
         <label>
           Type
-          <select name="type" value={type} onChange={e => { setType(e.target.value); setParentId(""); }}>
+          <select
+            name="type"
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setParentId("");
+            }}
+          >
             {["epic", "task", "bug", "subtask"].map((x) => (
               <option key={x}>{x}</option>
             ))}
@@ -1212,10 +1499,30 @@ function TaskForm({
             ))}
           </select>
         </label>
-        <div><SearchPicker label="Parent task" value={parentId} onChange={setParentId} items={tasks.filter(t =>
-          t.projectId === project.id && t.id !== task?.id && (!t.archived || t.id === task?.parentId) &&
-          (type === "subtask" ? ["task", "bug"].includes(t.type) : ["task", "bug"].includes(type) ? t.type === "epic" : false)
-        ).map(t => ({ id: t.id, name: `${t.key} · ${t.title}${t.archived ? " (archived)" : ""}` }))} /><input type="hidden" name="parentId" value={parentId} /></div>
+        <div>
+          <SearchPicker
+            label="Parent task"
+            value={parentId}
+            onChange={setParentId}
+            items={tasks
+              .filter(
+                (t) =>
+                  t.projectId === project.id &&
+                  t.id !== task?.id &&
+                  (!t.archived || t.id === task?.parentId) &&
+                  (type === "subtask"
+                    ? ["task", "bug"].includes(t.type)
+                    : ["task", "bug"].includes(type)
+                      ? t.type === "epic"
+                      : false),
+              )
+              .map((t) => ({
+                id: t.id,
+                name: `${t.key} · ${t.title}${t.archived ? " (archived)" : ""}`,
+              }))}
+          />
+          <input type="hidden" name="parentId" value={parentId} />
+        </div>
         <label>
           Sprint
           <select name="sprintId" defaultValue={task?.sprintId ?? ""}>

@@ -54,6 +54,7 @@ textarea {
   resize: vertical;
 }
 label {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -195,20 +196,55 @@ header {
   flex-wrap: wrap;
 }
 .filters {
-  display: flex;
+  display: grid;
   gap: 8px;
   flex-wrap: wrap;
   margin: 20px 0;
 }
-.filters > input:first-child {
+.filtersearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filtersearch > input {
   flex: 1;
   min-width: 220px;
 }
-.filters input {
+.filtercontrols {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.filtercontrols > input {
   width: 130px;
 }
-.filters select {
+.filtercontrols select {
   font-size: 12px;
+}
+.filtertoggle,
+.navigationtoggle,
+.navigationclose,
+.navigationbackdrop,
+.mobilebrand,
+.mobiledraghint {
+  display: none;
+}
+.filterreset {
+  background: transparent;
+  color: #5144c8;
+  padding: 10px;
+  font-size: 13px;
+}
+.workspacecontext {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.breadcrumb {
+  overflow-wrap: anywhere;
 }
 .stats {
   display: grid;
@@ -440,12 +476,42 @@ header {
   padding: 0;
 }
 .welcome {
-  background: #ede9ff;
+  background: white;
+  border: 1px solid #e4e8f0;
   padding: 30px;
   border-radius: 12px;
+  max-width: 640px;
+}
+.welcomeicon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  color: #5c50d9;
+  background: #efedff;
+  margin-bottom: 20px;
+}
+.welcome h2 {
+  font-size: 23px;
+  letter-spacing: -0.6px;
+  margin: 0 0 10px;
+}
+.welcome p {
+  color: #627089;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 22px;
+  max-width: 360px;
 }
 .welcome button {
-  margin-right: 12px;
+  min-height: 44px;
+}
+.welcome small {
+  display: block;
+  font-size: 12px;
+  color: #7b869c;
+  margin-top: 16px;
 }
 .badge {
   font-size: 10px;
@@ -543,98 +609,7 @@ progress {
     display: none;
   }
 }
-@media (max-width: 650px) {
-  .shell {
-    display: block;
-  }
-  aside {
-    position: static;
-    width: 100%;
-    height: auto;
-    padding: 14px;
-  }
-  .brand {
-    padding: 0 8px 14px;
-  }
-  nav {
-    display: flex;
-    overflow: auto;
-    gap: 5px;
-  }
-  nav button {
-    white-space: nowrap;
-    padding: 9px;
-    font-size: 12px;
-  }
-  .projectnav {
-    margin-top: 12px;
-    display: flex;
-    overflow: auto;
-    align-items: center;
-  }
-  .projectnav > small {
-    display: none;
-  }
-  .projectnav button {
-    white-space: nowrap;
-  }
-  .logout {
-    position: absolute;
-    top: 18px;
-    right: 15px;
-    font-size: 12px;
-  }
-  main {
-    padding: 0 14px 25px;
-  }
-  .pagetitle {
-    align-items: flex-start;
-    flex-direction: column;
-    margin: 23px 0;
-  }
-  .pagetitle h1 {
-    font-size: 26px;
-  }
-  .stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .panel {
-    padding: 16px;
-  }
-  .overlay {
-    padding: 8px;
-  }
-  .drawer,
-  .dialog {
-    padding: 25px 18px;
-    width: 100%;
-    border-radius: 12px;
-  }
-  .formgrid {
-    gap: 0 10px;
-  }
-  .column {
-    min-width: 245px;
-  }
-  .workflowrow {
-    flex-wrap: wrap;
-  }
-  .workflowrow input {
-    width: 100%;
-  }
-  .login {
-    margin: 4vh auto;
-  }
-  .filters > input:first-child {
-    min-width: 100%;
-  }
-  .filters > * {
-    flex: 1;
-  }
-  .activity {
-    flex-direction: column;
-  }
-}
+
 fieldset {
   border: 1px solid #e0e5ef;
   border-radius: 8px;
@@ -742,37 +717,537 @@ legend {
     animation: none !important;
   }
 }
+.headeraccount {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.accountmenu {
+  position: relative;
+}
+.avatar {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ebe7ff;
+  color: #5144c8;
+  font-size: 16px;
+  font-weight: 700;
+}
+.avatar::-webkit-details-marker {
+  display: none;
+}
+.accountdropdown {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: 46px;
+  padding: 16px;
+  min-width: 220px;
+  max-width: calc(100vw - 24px);
+  display: grid;
+  gap: 9px;
+  background: white;
+  border: 1px solid #d8dfeb;
+  border-radius: 10px;
+  box-shadow: 0 8px 30px #25344b20;
+}
+.accountdropdown strong {
+  overflow-wrap: anywhere;
+  margin-bottom: 5px;
+}
+.accountsettings {
+  max-width: 640px;
+}
+.projectnav button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.projectnav button b {
+  margin-left: auto;
+}
+.searchpicker {
+  min-width: 0;
+}
+.searchpicker input,
+.searchpicker select {
+  width: 100%;
+}
+.searchpicker select {
+  min-height: 80px;
+}
+.importpreview {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #d8dfeb;
+  border-radius: 7px;
+  margin: 12px 0;
+}
+.importpreview > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #edf0f6;
+}
+.importpreview small {
+  flex-shrink: 0;
+  color: #627089;
+}
+.textbutton {
+  display: block;
+  margin-top: 15px;
+  background: transparent;
+  color: #5144c8;
+  padding-left: 0;
+}
+.notice {
+  background: #efedff;
+  border-radius: 8px;
+  padding: 14px;
+}
+.setupguide {
+  margin: 20px 0;
+}
+.setupguide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.setupguide li {
+  margin: 12px 0;
+}
+.setupguide pre {
+  overflow: auto;
+  background: #f6f8fc;
+  padding: 16px;
+  border-radius: 8px;
+}
 @media (max-width: 650px) {
-  .filters > * {
-    flex: 1 1 calc(50% - 8px);
-    max-width: calc(50% - 4px);
-    width: calc(50% - 8px);
+  .headeraccount {
+    gap: 8px;
   }
-  .filters input:first-child {
-    flex-basis: 100%;
-    max-width: 100%;
-    width: 100%;
+  .headeraccount > span {
+    max-width: 110px;
+    text-align: right;
+  }
+  .importpreview > div {
+    flex-direction: column;
+    gap: 4px;
   }
 }
-.headeraccount { display:flex; align-items:center; gap:16px; }
-.accountmenu { position:relative; }
-.avatar { list-style:none; cursor:pointer; display:grid; place-items:center; width:36px; height:36px; border-radius:50%; background:#ebe7ff; color:#5144c8; font-size:16px; font-weight:700; }
-.avatar::-webkit-details-marker { display:none; }
-.accountdropdown { position:absolute; z-index:20; right:0; top:46px; padding:16px; min-width:220px; max-width:calc(100vw - 24px); display:grid; gap:9px; background:white; border:1px solid #d8dfeb; border-radius:10px; box-shadow:0 8px 30px #25344b20; }
-.accountdropdown strong { overflow-wrap:anywhere; margin-bottom:5px; }
-.accountsettings { max-width:640px; }
-.projectnav button { min-width:0; overflow-wrap:anywhere; }
-.projectnav button b { margin-left:auto; }
-.searchpicker { min-width:0; }
-.searchpicker input, .searchpicker select { width:100%; }
-.searchpicker select { min-height:80px; }
-.importpreview { max-height:220px; overflow:auto; border:1px solid #d8dfeb; border-radius:7px; margin:12px 0; }
-.importpreview > div { display:flex; justify-content:space-between; gap:12px; padding:9px 12px; border-bottom:1px solid #edf0f6; }
-.importpreview small { flex-shrink:0; color:#627089; }
-.textbutton { display:block; margin-top:15px; background:transparent; color:#5144c8; padding-left:0; }
-.notice { background:#efedff; border-radius:8px; padding:14px; }
-.setupguide { margin:20px 0; }
-.setupguide summary { cursor:pointer; font-weight:600; }
-.setupguide li { margin:12px 0; }
-.setupguide pre { overflow:auto; background:#f6f8fc; padding:16px; border-radius:8px; }
-@media(max-width:650px) { .headeraccount { gap:8px; } .headeraccount > span { max-width:110px; text-align:right; } .importpreview > div { flex-direction:column; gap:4px; } }
+
+@media (max-width: 650px) {
+  .shell {
+    display: block;
+  }
+  aside {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(300px, calc(100vw - 44px));
+    height: 100vh;
+    height: 100dvh;
+    padding: 24px 16px max(24px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    visibility: hidden;
+    transform: translateX(-100%);
+  }
+  aside.navigation-open {
+    visibility: visible;
+    transform: translateX(0);
+  }
+  .navigationbackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: #18243e66;
+    border-radius: 0;
+  }
+  .navigationclose {
+    display: block;
+    position: absolute;
+    right: 12px;
+    top: 16px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    font-size: 26px;
+  }
+  .navigationtoggle {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .mobilebrand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 17px;
+    font-weight: 700;
+    color: #25344b;
+  }
+  .mobilebrand b {
+    display: grid;
+    place-items: center;
+    background: #5c50d9;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 20px;
+  }
+  .breadcrumb {
+    display: none;
+  }
+  .savestatus:not(.hasactivity) {
+    display: none;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    padding: 12px 0;
+    background: #f6f8fc;
+    align-items: center;
+    gap: 8px;
+    min-height: 65px;
+  }
+  .pagetitle > div:first-child {
+    min-width: 0;
+  }
+  .pagetitle small {
+    display: none;
+  }
+  .pagetitle p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 6px 0 0;
+  }
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .actions:empty {
+    display: none;
+  }
+  .actions button {
+    min-height: 44px;
+    font-size: 13px;
+    padding: 10px;
+  }
+  .welcome {
+    padding: 24px 22px;
+  }
+  .welcome h2 {
+    font-size: 22px;
+    line-height: 1.3;
+  }
+  .welcome button {
+    width: 100%;
+  }
+  .welcomeicon {
+    margin-bottom: 18px;
+  }
+  button,
+  input,
+  select {
+    min-height: 44px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    max-width: 100%;
+  }
+  input[type="date"] {
+    width: 100%;
+    min-width: 0;
+    min-inline-size: 0;
+    max-width: 100%;
+    display: block;
+    appearance: none;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+  .accountdropdown {
+    top: 45px;
+    min-width: 240px;
+    max-width: calc(100vw - 32px);
+  }
+  .accountdropdown strong {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .board {
+    min-height: 340px;
+    gap: 12px;
+    scroll-snap-type: x proximity;
+  }
+  .board .column {
+    flex: 0 0 min(280px, calc(100vw - 56px));
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+  .column h3 {
+    font-size: 14px;
+    align-items: center;
+  }
+  .cardtitle {
+    font-size: 15px;
+    min-height: 0;
+  }
+  .card.draggable {
+    touch-action: auto;
+  }
+  .handle {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  .desktopdraghint {
+    display: none;
+  }
+  .mobiledraghint {
+    display: inline;
+  }
+  .boardhint {
+    margin: 12px 0;
+    font-size: 12px;
+  }
+  .filtersearch {
+    flex-wrap: wrap;
+  }
+  .filtersearch > input {
+    min-width: 0;
+    width: 0;
+    flex: 1;
+  }
+  .filtertoggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .filtertoggle span:first-child:not(:last-child) {
+    background: #efedff;
+    color: #5144c8;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .filterreset {
+    flex-basis: 100%;
+    text-align: left;
+    padding: 0;
+    min-height: 32px;
+  }
+  .filtercontrols {
+    display: none;
+  }
+  .filtercontrols.expanded {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+    background: white;
+    padding: 14px;
+    border: 1px solid #e4e8f0;
+    border-radius: 10px;
+  }
+  .filtercontrols > *,
+  .filters .datefilter {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+  }
+  .filtercontrols select,
+  .filtercontrols input {
+    width: 100%;
+    font-size: 16px;
+  }
+  .filters .datefilter {
+    font-size: 12px;
+    gap: 5px;
+  }
+  .filters .datefilter input {
+    padding: 10px;
+  }
+  .filtercontrols .datefilter {
+    grid-column: 1 / -1;
+  }
+  .stats {
+    margin: 18px 0;
+  }
+  .stats section {
+    padding: 16px;
+  }
+  .stats strong {
+    margin-top: 6px;
+    font-size: 26px;
+  }
+  .overviewgrid {
+    gap: 12px;
+  }
+  .panel h2 {
+    margin-bottom: 12px;
+  }
+  .tasklist button {
+    font-size: 13px;
+    gap: 8px;
+  }
+  .tasklist strong {
+    font-size: 14px;
+  }
+  .login {
+    padding: 22px 16px;
+  }
+  .login h1 {
+    font-size: 30px;
+    letter-spacing: -0.8px;
+  }
+  .login form {
+    padding: 20px 16px;
+  }
+  .login form button {
+    margin-bottom: 8px;
+  }
+  .setupguide pre {
+    font-size: 12px;
+  }
+  .credential {
+    flex-wrap: wrap;
+  }
+  .tokenpanel {
+    padding: 16px;
+  }
+  .dialog h2,
+  .drawer h2 {
+    margin-right: 30px;
+    overflow-wrap: anywhere;
+  }
+  .formgrid > * {
+    min-width: 0;
+  }
+  .formgrid input,
+  .formgrid select {
+    width: 100%;
+  }
+  .dialog,
+  .drawer {
+    max-height: calc(100dvh - 24px);
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  .brand {
+    padding: 0 8px 14px;
+  }
+  nav {
+    display: grid;
+    gap: 5px;
+  }
+  nav button {
+    padding: 12px;
+    font-size: 15px;
+  }
+  .projectnav {
+    margin-top: 22px;
+    display: grid;
+  }
+  .projectnav > small {
+    display: block;
+  }
+  .projectnav button {
+    white-space: normal;
+    font-size: 14px;
+  }
+  .logout {
+    position: absolute;
+    top: 18px;
+    right: 15px;
+    font-size: 12px;
+  }
+  main {
+    padding: 0 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .pagetitle {
+    align-items: flex-start;
+    flex-direction: column;
+    margin: 24px 0 20px;
+  }
+  .pagetitle h1 {
+    font-size: 26px;
+    line-height: 1.25;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .panel {
+    padding: 16px;
+  }
+  .overlay {
+    padding: 8px;
+  }
+  .drawer,
+  .dialog {
+    padding: 25px 18px;
+    width: 100%;
+    border-radius: 12px;
+  }
+  .formgrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .column {
+    min-width: 245px;
+  }
+  .workflowrow {
+    flex-wrap: wrap;
+  }
+  .workflowrow input {
+    width: 100%;
+  }
+  .login {
+    margin: 4vh auto;
+  }
+  .activity {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 650px) {
+  .actions > button:only-child {
+    grid-column: 1 / -1;
+  }
+  .headeraccount {
+    min-width: 0;
+  }
+  .headeraccount .savestatus {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 90px;
+  }
+  .avatar {
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 360px) {
+  .filtercontrols.expanded {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,25 +1,31 @@
 import { test, expect, Page } from "@playwright/test";
 async function setup(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
   await page
     .getByLabel("Email", { exact: true })
     .fill(`board-${Date.now()}-${Math.random()}@example.test`);
   await page
     .getByLabel("Password", { exact: true })
     .fill("another browser password");
-  await page.getByLabel("Confirm password", { exact: true }).fill("another browser password");
+  await page
+    .getByLabel("Confirm password", { exact: true })
+    .fill("another browser password");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Your work, in perspective" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   const p = await command(page, "project.create", {
     name: "Board test",
     prefix: "BT",
   });
   await page.reload();
+  if (page.viewportSize()!.width <= 650)
+    await page
+      .getByRole("button", { name: "Open navigation", exact: true })
+      .click();
   await page.getByRole("button", { name: "▦ Board", exact: true }).click();
   return p;
 }
@@ -163,6 +169,9 @@ test("failed optimistic move rolls back; stale editing does not overwrite a conc
     type: "task",
   });
   await page.reload();
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Board", exact: false })
     .first()

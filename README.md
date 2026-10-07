@@ -14,7 +14,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Open port 3000 in your local browser. Register an owner account with a password of at least 12 characters and at most 72 UTF-8 bytes. Create a project, or load optional fictional samples in an empty workspace. Development serves React through Vite middleware on the same origin as the API. If running elsewhere, use the actual checkout directory.
+Open port 3000 in your local browser. Register an owner account with a password of at least 12 characters and at most 72 UTF-8 bytes. Create your first project from the empty workspace. Development serves React through Vite middleware on the same origin as the API. If running elsewhere, use the actual checkout directory.
 
 MongoDB binds only to loopback and stores its data in the named Docker volume `learnverse_mongodb_data`. `npm run db:stop` stops it without deleting data. `npm run db` starts it again. Never remove the volume unless you intend to delete your database. For an existing MongoDB server, skip Docker and set `MONGODB_URI` in `.env`; keep credentials server-side. The `.env.example` contains no credentials.
 
@@ -28,6 +28,8 @@ Production serves the built `dist` directory, including SPA navigation without t
 ## Account and navigation
 
 Use the top avatar for **Settings** and **Sign out**. Projects use a searchable switcher, keeping navigation compact. **Forgot password?** emails a single-use, 15-minute reset link. Resetting or changing a password signs out existing sessions and revokes integration credentials; see [password recovery setup](docs/password-reset.md).
+
+On phones, open the header menu to navigate or switch projects. Search stays visible and **Filters** expands the additional controls, with a count of active filters and a reset action. Empty workspaces start with one project action; empty projects guide you to your first task. The fictional sample option is removed from onboarding. Swipe the board to browse columns, use a card's grip for touch dragging, or change status in task details.
 
 Task details have **Copy task link** and a stable `/tasks/{id}` address. Links reopen the task after sign-in only in the owning account. Parent selection searches by title or key and offers only compatible hierarchy types. **Import tasks** accepts CSV or JSON with a preview, 100-row/200 KB limits, and duplicate-title skipping within the selected project, including archived tasks. Imports use the same atomic revision and retry protection as other commands; a rule violation rejects the whole batch.
 
