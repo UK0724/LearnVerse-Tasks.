@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { taskFields, importRows, titleIdentity } from "../shared/task-import.js";
+import {
+  taskFields,
+  importRows,
+  titleIdentity,
+} from "../shared/task-import.js";
 export class Problem extends Error {
   constructor(
     public status: number,
@@ -111,12 +115,23 @@ export function command(state: State, action: string, input: unknown) {
   } else if (action === "task.import") {
     const d = z.object({ projectId: id, rows: importRows }).parse(input);
     if (project(d.projectId).archived) fail("Restore project first");
-    const seen = new Set(s.tasks.filter(t => t.projectId === d.projectId).map(t => titleIdentity(t.title)));
-    const imported = [], skipped = [];
+    const seen = new Set(
+      s.tasks
+        .filter((t) => t.projectId === d.projectId)
+        .map((t) => titleIdentity(t.title)),
+    );
+    const imported = [],
+      skipped = [];
     for (const [index, row] of d.rows.entries()) {
       const identity = titleIdentity(row.title);
-      if (seen.has(identity)) { skipped.push({ row: index + 1, title: row.title }); continue; }
-      const created = command(s, "task.create", { ...row, projectId: d.projectId });
+      if (seen.has(identity)) {
+        skipped.push({ row: index + 1, title: row.title });
+        continue;
+      }
+      const created = command(s, "task.create", {
+        ...row,
+        projectId: d.projectId,
+      });
       Object.assign(s, created.state);
       imported.push({ id: created.result.id, key: created.result.key });
       seen.add(identity);
@@ -207,6 +222,63 @@ export function command(state: State, action: string, input: unknown) {
         : s.tasks.length;
     s.tasks.splice(at, 0, result);
     result.updatedAt = now;
+  } else if (action === "task.moveMany") {
+    const d = z
+      .object({
+        ids: z.array(id).min(1).max(500),
+        statusId: id,
+        beforeId: id.nullable().default(null),
+        afterId: id.nullable().default(null),
+      })
+      .parse(input);
+    if (new Set(d.ids).size !== d.ids.length) fail("Select each task once");
+    const moving = s.tasks.filter((t) => d.ids.includes(t.id));
+    if (moving.length !== d.ids.length)
+      fail("Some selected tasks are unavailable");
+    if (moving.some((t) => t.archived || t.projectId !== moving[0].projectId))
+      fail("Select active tasks from one project");
+    if (
+      !project(moving[0].projectId).statuses.some(
+        (status: any) => status.id === d.statusId,
+      )
+    )
+      fail("Invalid project status");
+    if (d.beforeId && d.afterId && d.beforeId === d.afterId)
+      fail("Conflicting ordering anchors");
+    for (const t of moving) {
+      t.statusId = d.statusId;
+      validateTask(t);
+    }
+    const remaining = s.tasks.filter((t) => !d.ids.includes(t.id));
+    const anchor = (anchorId: string | null) =>
+      anchorId
+        ? remaining.find(
+            (t) =>
+              t.id === anchorId &&
+              t.projectId === moving[0].projectId &&
+              t.statusId === d.statusId &&
+              !t.archived,
+          )
+        : null;
+    const before = anchor(d.beforeId),
+      after = anchor(d.afterId);
+    if ((d.beforeId && !before) || (d.afterId && !after))
+      fail("Ordering anchor is no longer valid");
+    if (
+      before &&
+      after &&
+      remaining.indexOf(after) >= remaining.indexOf(before)
+    )
+      fail("Conflicting ordering anchors");
+    const at = before
+      ? remaining.indexOf(before)
+      : after
+        ? remaining.indexOf(after) + 1
+        : remaining.length;
+    s.tasks = remaining;
+    s.tasks.splice(at, 0, ...moving);
+    for (const t of moving) t.updatedAt = now;
+    result = { moved: moving.length, id: moving[0].id };
   } else if (action === "status.save") {
     const d = z
       .object({

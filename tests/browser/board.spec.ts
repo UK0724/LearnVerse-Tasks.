@@ -26,7 +26,7 @@ async function setup(page: Page) {
     await page
       .getByRole("button", { name: "Open navigation", exact: true })
       .click();
-  await page.getByRole("button", { name: "▦ Board", exact: true }).click();
+  await page.getByRole("link", { name: "▦ Board", exact: true }).click();
   return p;
 }
 async function workspace(page: Page) {
@@ -49,9 +49,13 @@ async function drag(
   from: string,
   target: ReturnType<Page["locator"]>,
 ) {
-  const start = await page
-      .getByRole("button", { name: "Reorder " + from, exact: true })
-      .boundingBox(),
+  const handle = page.getByRole("button", {
+    name: "Reorder " + from,
+    exact: true,
+  });
+  await handle.scrollIntoViewIfNeeded();
+  await target.scrollIntoViewIfNeeded();
+  const start = await handle.boundingBox(),
     end = await target.boundingBox();
   expect(start).not.toBeNull();
   expect(end).not.toBeNull();
@@ -89,10 +93,8 @@ test("filtered pointer and keyboard ordering persist without reordering hidden c
       type: "task",
     });
   await page.reload();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
+  await page.getByRole("link", { name: "Board", exact: false }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${p.id}/board$`));
   await page.getByLabel("Search tasks").fill("visible");
   await drag(
     page,
@@ -142,10 +144,7 @@ test("filtered pointer and keyboard ordering persist without reordering hidden c
     )
     .toBe(p.statuses[1].id);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
+  await page.getByRole("link", { name: "Board", exact: false }).first().click();
   await expect(
     target.getByRole("button", { name: "visible A", exact: true }),
   ).toBeVisible();
@@ -154,10 +153,42 @@ test("filtered pointer and keyboard ordering persist without reordering hidden c
       .filter((t: any) => t.title.startsWith("hidden"))
       .map((t: any) => t.title),
   ).toEqual(["hidden B", "hidden D"]);
+  await page.getByRole("button", { name: /Filters/ }).click();
   await page.getByLabel("Sort", { exact: true }).selectOption("priority");
   await expect(
     page.getByRole("button", { name: "Reorder BT-1", exact: true }),
   ).toBeDisabled();
+});
+test("selected cards move together and persist after reload", async ({
+  page,
+}) => {
+  const project = await setup(page);
+  for (const title of ["Group A", "Group B", "Leave here"])
+    await command(page, "task.create", {
+      projectId: project.id,
+      title,
+      type: "task",
+    });
+  await page.reload();
+  await page.getByLabel("Select BT-1").check();
+  await page.getByLabel("Select BT-2").check();
+  await page
+    .getByLabel("Move selected to status")
+    .selectOption(project.statuses[1].id);
+  await expect
+    .poll(async () =>
+      (await workspace(page)).tasks
+        .filter((task: any) => ["BT-1", "BT-2"].includes(task.key))
+        .map((task: any) => task.statusId),
+    )
+    .toEqual([project.statuses[1].id, project.statuses[1].id]);
+  await page.reload();
+  await expect(
+    page
+      .locator(".column")
+      .filter({ hasText: project.statuses[1].name })
+      .getByRole("button", { name: "Group A" }),
+  ).toBeVisible();
 });
 test("failed optimistic move rolls back; stale editing does not overwrite a concurrent edit", async ({
   page,
@@ -169,13 +200,6 @@ test("failed optimistic move rolls back; stale editing does not overwrite a conc
     type: "task",
   });
   await page.reload();
-  await page
-    .getByRole("button", { name: "Open navigation", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
   await page
     .getByRole("button", { name: "Original task", exact: true })
     .click();
@@ -199,7 +223,7 @@ test("failed optimistic move rolls back; stale editing does not overwrite a conc
   await page.unroute("**/api/v1/commands/task.move");
   await command(page, "task.update", { id: task.id, title: "Concurrent edit" });
   await page.getByLabel("Title", { exact: true }).fill("Stale edit");
-  await page.getByRole("button", { name: "Save task", exact: true }).click();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Workspace changed");
   expect((await workspace(page)).tasks[0].title).toBe("Concurrent edit");
   await page.getByLabel("Close details").click();
@@ -218,10 +242,6 @@ test("mobile workflow exposes task status controls without horizontal page overf
     type: "task",
   });
   await page.reload();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
   await page.getByRole("button", { name: "Mobile task", exact: true }).click();
   await expect(
     page.getByRole("combobox", { name: "Move to status", exact: true }),

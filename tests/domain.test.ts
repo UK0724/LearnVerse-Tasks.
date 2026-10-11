@@ -91,6 +91,40 @@ test("stable anchor ordering retains hidden card order", () => {
     /anchor/,
   );
 });
+test("moving a selected group preserves its order and validates anchors atomically", () => {
+  const x = setup();
+  const items = ["A", "B", "C", "D", "E"].map((title) =>
+    x.run("task.create", { projectId: x.p.id, title, type: "task" }),
+  );
+  x.run("task.moveMany", {
+    ids: [items[1].id, items[3].id],
+    statusId: x.p.statuses[1].id,
+    beforeId: null,
+    afterId: null,
+  });
+  assert.deepEqual(
+    x.state.tasks.map((t) => t.title),
+    ["A", "C", "E", "B", "D"],
+  );
+  assert.deepEqual(
+    x.state.tasks
+      .filter((t) => t.statusId === x.p.statuses[1].id)
+      .map((t) => t.title),
+    ["B", "D"],
+  );
+  const previous = structuredClone(x.state);
+  assert.throws(
+    () =>
+      x.run("task.moveMany", {
+        ids: [items[0].id, items[2].id],
+        statusId: x.p.statuses[1].id,
+        beforeId: items[4].id,
+        afterId: null,
+      }),
+    /anchor/,
+  );
+  assert.deepEqual(x.state, previous);
+});
 test("status deletion requires valid replacement including archived cards", () => {
   const x = setup(),
     t = x.run("task.create", {

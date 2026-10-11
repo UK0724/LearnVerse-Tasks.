@@ -28,7 +28,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
     .getByRole("dialog")
     .getByRole("button", { name: "Create project", exact: true })
     .click();
-  await page.getByRole("button", { name: "▦ Board", exact: true }).click();
+  await page.getByRole("link", { name: "▦ Board", exact: true }).click();
   await page.getByRole("button", { name: "Create task" }).click();
   await page.getByLabel("Title", { exact: true }).fill("First browser task");
   await page.getByRole("button", { name: "Save task", exact: true }).click();
@@ -36,7 +36,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
     page.getByRole("button", { name: "First browser task", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Sprints", exact: false })
+    .getByRole("link", { name: "Sprints", exact: false })
     .first()
     .click();
   await page.getByRole("button", { name: "Plan sprint" }).click();
@@ -48,10 +48,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
     .getByRole("dialog")
     .getByRole("button", { name: "Plan sprint" })
     .click();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
+  await page.getByRole("link", { name: "Board", exact: false }).first().click();
   await page
     .getByRole("button", { name: "First browser task", exact: true })
     .click();
@@ -59,7 +56,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
     .getByRole("dialog")
     .getByRole("combobox", { name: "Sprint", exact: true })
     .selectOption({ label: "Browser sprint" });
-  await page.getByRole("button", { name: "Save task", exact: true }).click();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await page
     .getByRole("button", { name: "First browser task", exact: true })
     .click();
@@ -69,10 +66,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
   await expect(page.getByText("Saving…", { exact: true })).not.toBeVisible();
   await page.getByLabel("Close details").click();
   await page.reload();
-  await page
-    .getByRole("button", { name: "Board", exact: false })
-    .first()
-    .click();
+  await page.getByRole("link", { name: "Board", exact: false }).first().click();
   await expect(
     page
       .locator(".column")
@@ -80,7 +74,7 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
       .getByRole("button", { name: "First browser task", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Sprints", exact: false })
+    .getByRole("link", { name: "Sprints", exact: false })
     .first()
     .click();
   await page.getByRole("button", { name: "Start sprint" }).click();
@@ -93,14 +87,16 @@ test("project, tasks, sprint carryover, refresh persistence and keyboard/status 
   await page
     .getByRole("button", { name: "Complete and save snapshot" })
     .click();
+  await page.getByText("View completed sprint snapshot").click();
   await expect(
     page.getByText("Immutable completion snapshot", { exact: false }),
   ).toBeVisible();
   await page.reload();
   await page
-    .getByRole("button", { name: "Sprints", exact: false })
+    .getByRole("link", { name: "Sprints", exact: false })
     .first()
     .click();
+  await page.getByText("View completed sprint snapshot").click();
   await expect(
     page.getByText("Immutable completion snapshot", { exact: false }),
   ).toBeVisible();

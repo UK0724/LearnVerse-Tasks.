@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense } from "react";
+import React, { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createPortal } from "react-dom";
 import {
@@ -26,6 +26,18 @@ import { SearchPicker } from "./workspace-tools";
 import { Authentication, AccountSettings } from "./account";
 const BulkImport = lazy(() => import("./bulk-import"));
 type Item = Record<string, any>;
+const projectViews = new Set(["board", "backlog", "sprints", "archive"]);
+const workspaceViews = new Set([
+  "overview",
+  "activity",
+  "integrations",
+  "settings",
+]);
+function viewUrl(view: string, projectId: string) {
+  return projectViews.has(view) && projectId
+    ? `/projects/${projectId}/${view}`
+    : `/${view}`;
+}
 function CardContent({
   task,
   handle,
@@ -74,10 +86,14 @@ function Card({
   task,
   open,
   disabled,
+  selected,
+  toggleSelection,
 }: {
   task: Item;
   open: () => void;
   disabled: boolean;
+  selected: boolean;
+  toggleSelection: () => void;
 }) {
   const d = useSortable({ id: task.id, disabled });
   return (
@@ -90,7 +106,8 @@ function Card({
       className={
         "card" +
         (d.isDragging ? " dragging" : "") +
-        (disabled ? "" : " draggable")
+        (disabled ? "" : " draggable") +
+        (selected ? " is-selected" : "")
       }
       onPointerDown={(event) => {
         if ((event.target as HTMLElement).closest(".handle")) return;
@@ -115,6 +132,18 @@ function Card({
           </button>
         }
       />
+      <label
+        className="cardselect"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <input
+          type="checkbox"
+          aria-label={`Select ${task.key}`}
+          checked={selected}
+          onChange={toggleSelection}
+        />
+        Select
+      </label>
     </article>
   );
 }
@@ -142,9 +171,11 @@ function Column({
   );
 }
 function App() {
+  const taskReturnUrl = useRef("/");
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Item | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [account, setAccount] = useState("");
   const [state, setState] = useState<Item | null>(null),
     [auth, setAuth] = useState(false),
@@ -181,7 +212,11 @@ function App() {
       setProjectId((current) =>
         s.projects.some((p: Item) => p.id === current)
           ? current
-          : (s.projects[0]?.id ?? ""),
+          : (s.projects.find((p: Item) =>
+              location.pathname.includes(`/projects/${p.id}/`),
+            )?.id ??
+            s.projects[0]?.id ??
+            ""),
       );
     } catch (e) {
       if ((e as Error).message === "Please sign in") {
@@ -220,11 +255,46 @@ function App() {
     return () => mobile.removeEventListener("change", changed);
   }, []);
   useEffect(() => {
+    if (!message) return;
+    const timeout = window.setTimeout(() => setMessage(""), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
+  useEffect(
+    () => setSelectedTaskIds([]),
+    [
+      q,
+      priority,
+      statusFilter,
+      label,
+      sprintFilter,
+      due,
+      sort,
+      projectFilter,
+      projectId,
+      view,
+    ],
+  );
+  useEffect(() => {
     if (!state || !auth) return;
     const openLink = () => {
       const match = /^\/tasks\/([0-9a-f-]{36})\/?$/i.exec(location.pathname);
       if (!match) {
         setSelected(null);
+        const route =
+          /^\/projects\/([0-9a-f-]{36})\/(board|backlog|sprints|archive)\/?$/i.exec(
+            location.pathname,
+          );
+        if (route && state.projects.some((p: Item) => p.id === route[1])) {
+          setProjectId(route[1]);
+          setView(route[2]);
+        } else {
+          const page = location.pathname.replace(/^\/+|\/+$/g, "");
+          setView(
+            workspaceViews.has(page) || projectViews.has(page)
+              ? page
+              : "overview",
+          );
+        }
         return;
       }
       const task = state.tasks.find((t: Item) => t.id === match[1]);
@@ -238,13 +308,31 @@ function App() {
     window.addEventListener("popstate", openLink);
     return () => window.removeEventListener("popstate", openLink);
   }, [auth, state]);
+  function navigate(nextView: string, nextProjectId = projectId) {
+    const url = viewUrl(nextView, nextProjectId);
+    if (location.pathname !== url) history.pushState(null, "", url);
+    setSelected(null);
+    setView(nextView);
+    setProjectId(nextProjectId);
+    setSelectedTaskIds([]);
+    setStatusFilter("");
+    setSprintFilter("");
+    setNavigationOpen(false);
+  }
   function openTask(task: Item) {
+    taskReturnUrl.current = location.pathname;
     history.pushState(null, "", `/tasks/${task.id}`);
     setSelected(task);
   }
   function closeTask() {
     if (location.pathname.startsWith("/tasks/"))
-      history.replaceState(null, "", "/");
+      history.replaceState(
+        null,
+        "",
+        taskReturnUrl.current === "/"
+          ? viewUrl(view, projectId)
+          : taskReturnUrl.current,
+      );
     setSelected(null);
   }
   const dialogOpen = !!modal || !!selected || navigationOpen;
@@ -321,8 +409,21 @@ function App() {
   }
   if (booting)
     return (
-      <main className="login">
-        <p role="status">Loading your workspace…</p>
+      <main
+        className="boot-screen"
+        role="status"
+        aria-label="Loading your workspace"
+      >
+        <div className="boot-brand">
+          <span>L</span>
+          <strong>
+            LearnVerse<small>TASKS</small>
+          </strong>
+        </div>
+        <div className="boot-progress" aria-hidden="true">
+          <span />
+        </div>
+        <p>Getting your workspace ready…</p>
       </main>
     );
   if (!auth || location.pathname === "/reset-password")
@@ -342,7 +443,6 @@ function App() {
     priority,
     statusFilter,
     label,
-    sprintFilter,
     due,
     sort !== "manual",
     view === "overview" && projectFilter,
@@ -431,6 +531,31 @@ function App() {
     ) : (
       <p className="empty">Nothing here yet.</p>
     );
+  async function moveMany(
+    movingIds: string[],
+    statusId: string,
+    beforeId: string | null = null,
+    afterId: string | null = null,
+  ) {
+    const copy = structuredClone(state!);
+    const moving = copy.tasks.filter((x: Item) => movingIds.includes(x.id));
+    for (const task of moving) task.statusId = statusId;
+    copy.tasks = copy.tasks.filter((x: Item) => !movingIds.includes(x.id));
+    const index = beforeId
+      ? copy.tasks.findIndex((x: Item) => x.id === beforeId)
+      : afterId
+        ? copy.tasks.findIndex((x: Item) => x.id === afterId) + 1
+        : copy.tasks.length;
+    copy.tasks.splice(index, 0, ...moving);
+    if (
+      await mutate(
+        "task.moveMany",
+        { ids: movingIds, statusId, beforeId, afterId },
+        copy,
+      )
+    )
+      setSelectedTaskIds([]);
+  }
   async function move(
     task: Item,
     statusId: string,
@@ -475,7 +600,14 @@ function App() {
         >
           ×
         </button>
-        <a className="brand" href="#">
+        <a
+          className="brand"
+          href="/overview"
+          onClick={(event) => {
+            event.preventDefault();
+            navigate("overview");
+          }}
+        >
           L{" "}
           <span>
             LearnVerse<small>TASKS</small>
@@ -491,18 +623,18 @@ function App() {
             ["activity", "↺", "Activity"],
             ["integrations", "⚙", "Integrations"],
           ].map(([key, icon, name]) => (
-            <button
+            <a
               key={key}
               className={view === key ? "active" : ""}
-              onClick={() => {
-                setNavigationOpen(false);
-                setView(key);
-                setStatusFilter("");
-                setSprintFilter("");
+              href={viewUrl(key, projectId)}
+              aria-current={view === key ? "page" : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(key);
               }}
             >
               {icon} {name}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="projectnav">
@@ -554,10 +686,11 @@ function App() {
               <b>L</b> Tasks
             </span>
             <span className="breadcrumb">
-              Workspace /{" "}
               {view === "overview"
-                ? "Your focus"
-                : (project?.name ?? "Choose a project")}
+                ? "Overview"
+                : projectViews.has(view)
+                  ? `${project?.name ?? "Project"} / ${view.charAt(0).toUpperCase() + view.slice(1)}`
+                  : view.charAt(0).toUpperCase() + view.slice(1)}
             </span>
           </div>
           <div className="headeraccount">
@@ -567,7 +700,7 @@ function App() {
                 saving || message ? "savestatus hasactivity" : "savestatus"
               }
             >
-              {saving ? "Saving…" : message || "Private workspace"}
+              {saving ? "Saving…" : message || ""}
             </span>
             <details className="accountmenu">
               <summary aria-label="Account menu" className="avatar">
@@ -579,7 +712,7 @@ function App() {
                   className="secondary"
                   onClick={(e) => {
                     e.currentTarget.closest("details")?.removeAttribute("open");
-                    setView("settings");
+                    navigate("settings");
                   }}
                 >
                   Settings
@@ -627,15 +760,6 @@ function App() {
             </p>
           </div>
           <div className="actions">
-            {project && ["board", "backlog"].includes(view) && (
-              <button
-                className="secondary"
-                disabled={project.archived || saving}
-                onClick={() => setModal("import")}
-              >
-                Import tasks
-              </button>
-            )}
             {project &&
               !["settings", "integrations"].includes(view) &&
               (view !== "overview" || !!state.tasks.length) && (
@@ -646,27 +770,53 @@ function App() {
                   ＋ Create task
                 </button>
               )}
-            {project && view === "board" && (
-              <button
-                className="secondary"
-                disabled={saving}
-                onClick={() =>
-                  mutate("project.archive", {
-                    id: projectId,
-                    archived: !project.archived,
-                  })
-                }
-              >
-                {project.archived ? "Restore project" : "Archive project"}
-              </button>
-            )}
-            {project && view === "board" && (
-              <button
-                className="secondary"
-                onClick={() => setModal("statuses")}
-              >
-                Workflow
-              </button>
+            {project && ["board", "backlog"].includes(view) && (
+              <details className="projectactions">
+                <summary>
+                  Project actions <span aria-hidden="true">⌄</span>
+                </summary>
+                <div>
+                  <button
+                    disabled={project.archived || saving}
+                    onClick={(e) => {
+                      e.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open");
+                      setModal("import");
+                    }}
+                  >
+                    Import tasks
+                  </button>
+                  {view === "board" && (
+                    <button
+                      onClick={(e) => {
+                        e.currentTarget
+                          .closest("details")
+                          ?.removeAttribute("open");
+                        setModal("statuses");
+                      }}
+                    >
+                      Edit workflow
+                    </button>
+                  )}
+                  {view === "board" && (
+                    <button
+                      disabled={saving}
+                      onClick={(e) => {
+                        e.currentTarget
+                          .closest("details")
+                          ?.removeAttribute("open");
+                        mutate("project.archive", {
+                          id: projectId,
+                          archived: !project.archived,
+                        });
+                      }}
+                    >
+                      {project.archived ? "Restore project" : "Archive project"}
+                    </button>
+                  )}
+                </div>
+              </details>
             )}
           </div>
         </div>
@@ -725,76 +875,94 @@ function App() {
                 id="task-filter-controls"
                 className={"filtercontrols" + (filtersOpen ? " expanded" : "")}
               >
-                <select
-                  aria-label="Project filter"
-                  value={view === "overview" ? projectFilter : projectId}
-                  onChange={(e) => {
-                    if (view === "overview") setProjectFilter(e.target.value);
-                    else setProjectId(e.target.value);
-                    setStatusFilter("");
-                    setSprintFilter("");
-                  }}
-                >
-                  {view === "overview" && (
-                    <option value="">All projects</option>
-                  )}
-                  {state.projects.map((p: Item) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Priority filter"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
-                  <option value="">All priorities</option>
-                  {["urgent", "high", "medium", "low"].map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Status filter"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">All statuses</option>
-                  {filterStatuses.map((s: Item) => (
-                    <option value={s.id} key={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  aria-label="Label filter"
-                  placeholder="Label"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                />
-                <select
-                  aria-label="Sprint filter"
-                  value={sprintFilter}
-                  onChange={(e) => setSprintFilter(e.target.value)}
-                >
-                  <option value="">All sprints</option>
-                  <option value="none">Unscheduled</option>
-                  {filterSprints.map((s: Item) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <label>
+                  Project
+                  <select
+                    aria-label="Project filter"
+                    value={view === "overview" ? projectFilter : projectId}
+                    onChange={(e) => {
+                      if (view === "overview") setProjectFilter(e.target.value);
+                      else setProjectId(e.target.value);
+                      setStatusFilter("");
+                      setSprintFilter("");
+                    }}
+                  >
+                    {view === "overview" && (
+                      <option value="">All projects</option>
+                    )}
+                    {state.projects.map((p: Item) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Priority
+                  <select
+                    aria-label="Priority filter"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                  >
+                    <option value="">All priorities</option>
+                    {["urgent", "high", "medium", "low"].map((x) => (
+                      <option key={x}>{x}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select
+                    aria-label="Status filter"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="">All statuses</option>
+                    {filterStatuses.map((s: Item) => (
+                      <option value={s.id} key={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Label
+                  <input
+                    aria-label="Label filter"
+                    placeholder="Label"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Sprint
+                  <select
+                    aria-label="Sprint filter"
+                    value={sprintFilter}
+                    onChange={(e) => setSprintFilter(e.target.value)}
+                  >
+                    <option value="">All sprints</option>
+                    <option value="none">Unscheduled</option>
+                    {filterSprints.map((s: Item) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                <select
-                  aria-label="Sort"
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                >
-                  <option value="manual">Manual order</option>
-                  <option value="priority">Priority</option>
-                  <option value="due">Due date</option>
-                </select>
+                <label>
+                  Order
+                  <select
+                    aria-label="Sort"
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value)}
+                  >
+                    <option value="manual">Manual order</option>
+                    <option value="priority">Priority</option>
+                    <option value="due">Due date</option>
+                  </select>
+                </label>
                 <label className="datefilter">
                   Due before
                   <input
@@ -929,10 +1097,53 @@ function App() {
         )}
         {view === "board" && project && (
           <>
+            <div className="boardtoolbar">
+              <div>
+                <strong>{filtered.length} tasks</strong>
+                <span> · {selectedTaskIds.length} selected</span>
+              </div>
+              <div className="boardtoolactions">
+                <button
+                  className="secondary"
+                  onClick={() => setSelectedTaskIds(filtered.map((t) => t.id))}
+                  disabled={!filtered.length}
+                >
+                  Select visible
+                </button>
+                {selectedTaskIds.length > 0 && (
+                  <button
+                    className="secondary"
+                    onClick={() => setSelectedTaskIds([])}
+                  >
+                    Clear
+                  </button>
+                )}
+                {selectedTaskIds.length > 0 && (
+                  <label>
+                    Move selected to
+                    <select
+                      aria-label="Move selected to status"
+                      value=""
+                      disabled={saving}
+                      onChange={(e) =>
+                        moveMany(selectedTaskIds, e.target.value)
+                      }
+                    >
+                      <option value="">Choose status</option>
+                      {statuses.map((s: Item) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+            </div>
             <p className="hint boardhint">
               <span className="desktopdraghint">
-                Drag a card or focus its grip and press Space, arrow keys, then
-                Space. Task details also offer “Move to status”.
+                Select cards to move them together. Drag a card to reorder, or
+                focus its grip and press Space, arrow keys, then Space.
               </span>
               <span className="mobiledraghint">
                 Swipe to browse columns. Use a card’s grip to drag, or tap it to
@@ -979,24 +1190,35 @@ function App() {
                   target = tasks.find((x) => x.id === e.over!.id),
                   statusId = target?.statusId ?? String(e.over.id);
                 if (!t || t.id === target?.id) return;
+                const movingIds =
+                  selectedTaskIds.includes(t.id) && selectedTaskIds.length > 1
+                    ? filtered
+                        .filter((x) => selectedTaskIds.includes(x.id))
+                        .map((x) => x.id)
+                    : [t.id];
+                if (target && movingIds.includes(target.id)) return;
                 const peers = filtered.filter(
-                  (x) => x.statusId === statusId && x.id !== t.id,
+                  (x) => x.statusId === statusId && !movingIds.includes(x.id),
                 );
                 if (target) {
                   const index = peers.findIndex((x) => x.id === target.id);
                   const down =
                     t.statusId === statusId &&
                     filtered.indexOf(t) < filtered.indexOf(target);
-                  if (down)
-                    move(t, statusId, peers[index + 1]?.id ?? null, target.id);
-                  else
-                    move(
-                      t,
-                      statusId,
-                      target.id,
-                      index > 0 ? peers[index - 1].id : null,
-                    );
-                } else move(t, statusId, null, peers.at(-1)?.id ?? null);
+                  const beforeId = down
+                    ? (peers[index + 1]?.id ?? null)
+                    : target.id;
+                  const afterId = down
+                    ? target.id
+                    : index > 0
+                      ? peers[index - 1].id
+                      : null;
+                  if (movingIds.length > 1)
+                    moveMany(movingIds, statusId, beforeId, afterId);
+                  else move(t, statusId, beforeId, afterId);
+                } else if (movingIds.length > 1)
+                  moveMany(movingIds, statusId, null, peers.at(-1)?.id ?? null);
+                else move(t, statusId, null, peers.at(-1)?.id ?? null);
               }}
             >
               <div className="board">
@@ -1014,6 +1236,14 @@ function App() {
                             task={t}
                             open={() => openTask(t)}
                             disabled={saving || sort !== "manual"}
+                            selected={selectedTaskIds.includes(t.id)}
+                            toggleSelection={() =>
+                              setSelectedTaskIds((ids) =>
+                                ids.includes(t.id)
+                                  ? ids.filter((id) => id !== t.id)
+                                  : [...ids, t.id],
+                              )
+                            }
                           />
                         ))}
                       </SortableContext>
@@ -1043,15 +1273,21 @@ function App() {
               <p className="empty">No sprints yet. Plan your first sprint.</p>
             )}
             {sprints.map((s: Item) => {
-              const items = tasks.filter(
-                (t) => t.sprintId === s.id && !t.archived,
-              );
+              const items =
+                s.state === "completed"
+                  ? [...s.snapshot.finished, ...s.snapshot.unfinished]
+                  : tasks.filter((t) => t.sprintId === s.id && !t.archived);
+              const doneCount =
+                s.state === "completed"
+                  ? s.snapshot.finished.length
+                  : items.filter(isDone).length;
               return (
                 <section className="panel sprint" key={s.id}>
                   <div className="pagetitle">
                     <div>
                       <h2>
-                        {s.name} <span className="badge">{s.state}</span>
+                        {s.name}{" "}
+                        <span className={`badge ${s.state}`}>{s.state}</span>
                       </h2>
                       <p>{s.goal}</p>
                       <small>
@@ -1077,8 +1313,32 @@ function App() {
                       </button>
                     )}
                   </div>
+                  <div className="sprintmetrics">
+                    <div>
+                      <strong>{items.length}</strong>
+                      <span>Tasks</span>
+                    </div>
+                    <div>
+                      <strong>{doneCount}</strong>
+                      <span>Done</span>
+                    </div>
+                    <div>
+                      <strong>{items.length - doneCount}</strong>
+                      <span>Remaining</span>
+                    </div>
+                    <div className="sprintprogress">
+                      <span>
+                        {items.length
+                          ? Math.round((doneCount / items.length) * 100)
+                          : 0}
+                        % complete
+                      </span>
+                      <progress value={doneCount} max={items.length || 1} />
+                    </div>
+                  </div>
                   {s.state === "completed" ? (
-                    <>
+                    <details className="sprinttasks">
+                      <summary>View completed sprint snapshot</summary>
                       <h3>Finished · {s.snapshot.finished.length}</h3>
                       {list(s.snapshot.finished)}
                       <h3>Unfinished · {s.snapshot.unfinished.length}</h3>
@@ -1086,9 +1346,12 @@ function App() {
                       <p className="hint">
                         Immutable completion snapshot · {s.snapshot.completedAt}
                       </p>
-                    </>
+                    </details>
                   ) : (
-                    list(items)
+                    <details className="sprinttasks">
+                      <summary>View {items.length} sprint tasks</summary>
+                      {list(items)}
+                    </details>
                   )}
                 </section>
               );
@@ -1135,82 +1398,107 @@ function App() {
               aria-label="Task details"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                className="close"
-                onClick={closeTask}
-                aria-label="Close details"
-              >
-                ×
-              </button>
-              <small>{selected.key}</small>
-              <h2>{selected.title}</h2>
-              <button
-                className="secondary"
-                onClick={async () => {
-                  const url = new URL(`/tasks/${selected.id}`, location.origin)
-                    .href;
-                  try {
-                    await navigator.clipboard.writeText(url);
-                    setMessage("Task link copied");
-                  } catch {
-                    setMessage("Copy the task link from your address bar");
-                  }
-                }}
-              >
-                Copy task link
-              </button>
-              <ReactMarkdown>
-                {selected.description || "No description yet."}
-              </ReactMarkdown>
-              <TaskForm
-                key={selected.id}
-                task={tasks.find((t) => t.id === selected.id) ?? selected}
-                project={state.projects.find(
-                  (p: Item) => p.id === selected.projectId,
-                )}
-                tasks={tasks}
-                sprints={state.sprints}
-                saving={saving}
-                submit={async (data) => {
-                  if (await mutate("task.update", { ...data, id: selected.id }))
-                    closeTask();
-                }}
-              />
-              <label>
-                Move to status
-                <select
-                  value={
-                    (tasks.find((t) => t.id === selected.id) ?? selected)
-                      .statusId
-                  }
-                  disabled={saving}
-                  onChange={(e) => move(selected, e.target.value)}
+              <div className="drawerhead">
+                <div>
+                  <small>{selected.key} · Task details</small>
+                  <h2>{selected.title}</h2>
+                </div>
+                <button
+                  className="close"
+                  onClick={closeTask}
+                  aria-label="Close details"
                 >
-                  {state.projects
-                    .find((p: Item) => p.id === selected.projectId)
-                    .statuses.map((s: Item) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <button
-                className="secondary"
-                disabled={saving}
-                onClick={async () => {
-                  if (
-                    await mutate("task.update", {
-                      id: selected.id,
-                      archived: !selected.archived,
-                    })
-                  )
-                    closeTask();
-                }}
-              >
-                {selected.archived ? "Restore task" : "Archive task"}
-              </button>
-              <p className="hint">Archiving preserves all child tasks.</p>
+                  ×
+                </button>
+              </div>
+              <div className="drawerbody">
+                {selected.description && (
+                  <details className="descriptionpreview">
+                    <summary>Read description</summary>
+                    <div>
+                      <ReactMarkdown>{selected.description}</ReactMarkdown>
+                    </div>
+                  </details>
+                )}
+                <TaskForm
+                  formId="task-details-form"
+                  key={selected.id}
+                  task={tasks.find((t) => t.id === selected.id) ?? selected}
+                  project={state.projects.find(
+                    (p: Item) => p.id === selected.projectId,
+                  )}
+                  tasks={tasks}
+                  sprints={state.sprints}
+                  saving={saving}
+                  submit={async (data) => {
+                    if (
+                      await mutate("task.update", { ...data, id: selected.id })
+                    )
+                      closeTask();
+                  }}
+                />
+                <label>
+                  Move to status
+                  <select
+                    value={
+                      (tasks.find((t) => t.id === selected.id) ?? selected)
+                        .statusId
+                    }
+                    disabled={saving}
+                    onChange={(e) => move(selected, e.target.value)}
+                  >
+                    {state.projects
+                      .find((p: Item) => p.id === selected.projectId)
+                      .statuses.map((s: Item) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <p className="hint">Archiving preserves all child tasks.</p>
+              </div>
+              <div className="drawerfooter">
+                <button
+                  className="secondary"
+                  onClick={async () => {
+                    const url = new URL(
+                      `/tasks/${selected.id}`,
+                      location.origin,
+                    ).href;
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setMessage("Task link copied");
+                    } catch {
+                      setMessage("Copy the task link from your address bar");
+                    }
+                  }}
+                >
+                  Copy link
+                </button>
+                <button
+                  className="secondary"
+                  disabled={saving}
+                  onClick={async () => {
+                    if (
+                      await mutate("task.update", {
+                        id: selected.id,
+                        archived: !selected.archived,
+                      })
+                    )
+                      closeTask();
+                  }}
+                >
+                  {selected.archived ? "Restore task" : "Archive task"}
+                </button>
+                <button
+                  type="submit"
+                  form="task-details-form"
+                  disabled={saving}
+                >
+                  Save changes
+                </button>
+              </div>
             </section>
           </div>
         )}
@@ -1258,11 +1546,8 @@ function App() {
                   value={projectId}
                   onChange={(id) => {
                     closeTask();
-                    setProjectId(id);
-                    setView("board");
-                    setStatusFilter("");
-                    setSprintFilter("");
                     setModal("");
+                    navigate("board", id);
                   }}
                 />
               )}
@@ -1304,12 +1589,22 @@ function App() {
                       setModal("");
                   }}
                 >
+                  <p className="dialogintro">
+                    Give related work one home. You can add tasks and plan
+                    sprints after creating it.
+                  </p>
                   <label>
                     Project name
-                    <input name="name" required maxLength={200} />
+                    <input
+                      name="name"
+                      required
+                      maxLength={200}
+                      placeholder="e.g. LearnVerse Teaching"
+                      autoFocus
+                    />
                   </label>
                   <label>
-                    Key prefix
+                    Task key prefix
                     <input
                       name="prefix"
                       required
@@ -1317,6 +1612,9 @@ function App() {
                       placeholder="LV"
                     />
                   </label>
+                  <p className="hint">
+                    The key appears before task numbers, for example LV-1.
+                  </p>
                   <button disabled={saving}>Create project</button>
                 </form>
               )}
@@ -1413,6 +1711,7 @@ function App() {
   );
 }
 function TaskForm({
+  formId,
   task,
   project,
   tasks,
@@ -1420,6 +1719,7 @@ function TaskForm({
   saving,
   submit,
 }: {
+  formId?: string;
   task?: Item;
   project: Item;
   tasks: Item[];
@@ -1431,6 +1731,7 @@ function TaskForm({
   const [parentId, setParentId] = useState(task?.parentId ?? "");
   return (
     <form
+      id={formId}
       key={task?.id ?? "new"}
       onSubmit={(e) => {
         e.preventDefault();
@@ -1563,7 +1864,7 @@ function TaskForm({
         </label>
       </div>
       <p className="hint">Subtasks inherit their parent’s sprint.</p>
-      <button disabled={saving}>Save task</button>
+      {!formId && <button disabled={saving}>Save task</button>}
     </form>
   );
 }

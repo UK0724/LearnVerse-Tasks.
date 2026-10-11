@@ -27,7 +27,7 @@ Production serves the built `dist` directory, including SPA navigation without t
 
 ## Account and navigation
 
-Use the top avatar for **Settings** and **Sign out**. Projects use a searchable switcher, keeping navigation compact. **Forgot password?** emails a single-use, 15-minute reset link. Resetting or changing a password signs out existing sessions and revokes integration credentials; see [password recovery setup](docs/password-reset.md).
+Use the top avatar for **Settings** and **Sign out**. Projects use a searchable switcher, keeping navigation compact. Each workspace view has its own URL, including `/overview` and `/projects/{id}/board`. **Forgot password?** emails a single-use, 15-minute reset link. Resetting or changing a password signs out existing sessions and revokes integration credentials; see [password recovery setup](docs/password-reset.md).
 
 On phones, open the header menu to navigate or switch projects. Search stays visible and **Filters** expands the additional controls, with a count of active filters and a reset action. Empty workspaces start with one project action; empty projects guide you to your first task. The fictional sample option is removed from onboarding. Swipe the board to browse columns, use a card's grip for touch dragging, or change status in task details.
 
@@ -38,7 +38,7 @@ Task details have **Copy task link** and a stable `/tasks/{id}` address. Links r
 - Projects have readable, incrementing keys, configurable ordered statuses and categories, a board, and a prioritized backlog. “Backlog” is a list of all project work; filter Sprint → Unscheduled for unplanned work.
 - Task descriptions accept Markdown and render without raw HTML. Tasks support epics, tasks, bugs, subtasks, priorities, labels, estimates, due dates, archive and restore.
 - Epic → Task/Bug → Subtask is enforced within one project. Subtasks require a parent and inherit its sprint. Parent sprint changes cascade to subtasks. Archiving a parent preserves children; a child with an already archived parent can still be edited.
-- Drag a card body or grip between columns or to a neighboring card. Focus a grip and use Space, arrows, Space for keyboard dragging. The task detail drawer also has a Move to status selector. A stable before/after anchor identifies order; hidden cards retain their relative order. Priority/due-date sorts disable manual drag ordering.
+- Drag a card body or grip between columns or to a neighboring card. Select multiple cards to drag or move them together in one atomic command. Focus a grip and use Space, arrows, Space for keyboard dragging. The task detail drawer also has a Move to status selector. A stable before/after anchor identifies order; hidden cards retain their relative order. Priority/due-date sorts disable manual drag ordering.
 - Workflow editing adds, renames, reorders, and removes statuses. Removed populated statuses require replacement, including for archived tasks.
 - Only one sprint can be active per project. Completion previews finished and unfinished work. Carryover goes to the backlog or a planned sprint. Subtasks follow an unfinished parent, including finished subtasks; a finished parent cannot complete with unfinished subtasks. Completion snapshots preserve task data even after later edits.
 - The overview uses explicit rules: urgent/high priority and overdue unfinished work, upcoming seven-day due dates, unscheduled work, active sprint progress, and recently completed work. No AI prioritization.
@@ -71,4 +71,4 @@ Browser tests use Playwright Chromium by default. Install it with `npx playwrigh
 
 ## Deferred features and limits
 
-Chat, attachments, notifications, real-time collaboration, team roles, password recovery, bulk task operations, and analytics are deferred. The API provides paginated task reads, while the browser fetches the complete small workspace for boards. The drawer preserves board context, traps keyboard focus, and closes with Escape. Dates use ISO calendar dates; estimates are numeric units chosen by the owner. Sessions expire rather than using background refresh. No Git or GitHub operations were used to build this application.
+Chat, attachments, notifications, real-time collaboration, team roles, broader bulk task editing, and analytics are deferred. The API provides paginated task reads, while the browser fetches the complete small workspace for boards. The drawer preserves board context, traps keyboard focus, and closes with Escape. Dates use ISO calendar dates; estimates are numeric units chosen by the owner. Sessions expire rather than using background refresh.

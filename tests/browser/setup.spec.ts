@@ -36,6 +36,7 @@ test("an empty workspace starts with one project action and no sample or filter 
   await page.getByLabel("Project name").fill("My project");
   await page.getByLabel("Key prefix").fill("WORK");
   await page
+    .getByRole("dialog")
     .getByRole("button", { name: "Create project", exact: true })
     .click();
   await page.reload();
@@ -103,9 +104,7 @@ test("integration setup shows explicit scopes, a one-time secret, and revocation
       body: JSON.stringify({ credential }),
     });
   });
-  await page
-    .getByRole("button", { name: "Integrations", exact: false })
-    .click();
+  await page.getByRole("link", { name: "Integrations", exact: false }).click();
   await expect(
     page.getByText("No credentials have been created.", { exact: true }),
   ).toBeVisible();

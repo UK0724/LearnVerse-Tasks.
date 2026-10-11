@@ -1251,3 +1251,686 @@ legend {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Workspace refresh */
+:root {
+  color: #172b4b;
+  background: #f7f9fd;
+}
+button {
+  border-radius: 10px;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+button:active {
+  transform: translateY(1px);
+}
+input,
+select,
+textarea {
+  border-color: #ced8e8;
+  border-radius: 10px;
+  background: #fff;
+  min-height: 42px;
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #9daeca;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #6b5ce5;
+}
+label {
+  color: #445571;
+}
+aside {
+  width: 250px;
+  padding: 26px 16px;
+  border-right-color: #dfe6f1;
+  box-shadow: 3px 0 20px #19345708;
+}
+.brand {
+  padding: 2px 10px 34px;
+}
+nav {
+  gap: 4px;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #53647e;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 550;
+}
+nav a:hover {
+  background: #f1f4fa;
+  color: #293b59;
+}
+nav a.active {
+  background: #ece9ff;
+  color: #4d42bd;
+  font-weight: 700;
+  box-shadow: inset 3px 0 #6658df;
+}
+.projectnav {
+  margin-top: 28px;
+  border-top: 1px solid #e9edf5;
+  padding-top: 18px;
+}
+.projectnav > small {
+  font-weight: 700;
+}
+.projectnav button.chosen {
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  background: #f8f9fd;
+  font-size: 13px;
+  font-weight: 650;
+}
+.projectnav button.chosen:hover {
+  border-color: #a99ff0;
+  background: #f4f2ff;
+}
+main {
+  padding: 0 32px 48px;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  min-height: 66px;
+  align-items: center;
+  padding: 12px 0;
+  background: #f7f9fd;
+  border-bottom-color: #e2e8f1;
+}
+.breadcrumb {
+  color: #52627c;
+  font-size: 13px;
+  font-weight: 650;
+}
+.headeraccount {
+  gap: 10px;
+}
+.savestatus {
+  color: #338069;
+  font-weight: 600;
+}
+.savestatus:empty {
+  display: none;
+}
+.avatar {
+  border: 1px solid #d9d4fc;
+  box-shadow: 0 1px 4px #322c7012;
+}
+.accountdropdown {
+  padding: 8px;
+  gap: 2px;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px #18284329;
+}
+.accountdropdown strong {
+  padding: 10px 10px 12px;
+  border-bottom: 1px solid #e9edf4;
+  margin-bottom: 3px;
+  font-size: 12px;
+  color: #52627b;
+}
+.accountdropdown button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+}
+.accountdropdown button:hover {
+  background: #f2f4fb;
+}
+.pagetitle {
+  margin: 28px 0 22px;
+}
+.pagetitle h1 {
+  letter-spacing: -0.8px;
+}
+.actions {
+  align-items: center;
+}
+.projectactions {
+  position: relative;
+}
+.projectactions summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border: 1px solid #d8dfeb;
+  border-radius: 10px;
+  background: white;
+  color: #46536b;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.projectactions summary::-webkit-details-marker {
+  display: none;
+}
+.projectactions summary:hover {
+  background: #f4f6fb;
+}
+.projectactions > div {
+  position: absolute;
+  z-index: 18;
+  right: 0;
+  top: calc(100% + 7px);
+  min-width: 190px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  background: white;
+  border: 1px solid #dfe5ef;
+  border-radius: 11px;
+  box-shadow: 0 14px 34px #17274429;
+}
+.projectactions button {
+  text-align: left;
+  background: transparent;
+  color: #34445f;
+  font-size: 12px;
+  padding: 11px;
+}
+.projectactions button:hover {
+  background: #f2f4fa;
+}
+.panel,
+.stats section {
+  border-color: #e0e7f1;
+  box-shadow: 0 3px 14px #263b5907;
+}
+.filtersearch > input {
+  min-height: 46px;
+  padding-left: 15px;
+}
+.filtertoggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+}
+.filters {
+  background: #fff;
+  border: 1px solid #e0e7f1;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 3px 14px #263b5908;
+}
+.filtercontrols {
+  display: none;
+  grid-template-columns: repeat(4, minmax(135px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.filtercontrols.expanded {
+  display: grid;
+}
+.filtercontrols label,
+.filters .datefilter {
+  margin: 0;
+  width: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #66758e;
+}
+.filtercontrols label input,
+.filtercontrols label select,
+.filters .datefilter input {
+  width: 100%;
+  font-size: 13px;
+  padding: 10px 12px;
+  min-height: 42px;
+}
+.filters .datefilter {
+  gap: 6px;
+}
+.filterreset {
+  font-weight: 650;
+}
+.boardtoolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 2px;
+  font-size: 13px;
+  color: #687894;
+}
+.boardtoolbar strong {
+  color: #283a56;
+}
+.boardtoolactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.boardtoolactions button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.boardtoolactions label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.boardtoolactions select {
+  min-width: 150px;
+}
+.board {
+  gap: 14px;
+  align-items: flex-start;
+}
+.column {
+  flex: 1 0 235px;
+  background: #f1f4fa;
+  border: 1px solid #e5eaf3;
+  padding: 11px;
+}
+.column h3 {
+  font-size: 13px;
+  color: #3d4e6c;
+}
+.column.over {
+  background: #e9e5ff;
+  outline: 2px solid #8172e8;
+}
+.card {
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #2236570a;
+  transition:
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+.card:hover {
+  border-color: #c8c2f4;
+  box-shadow: 0 6px 18px #29396116;
+}
+.card.is-selected {
+  border-color: #7768df;
+  box-shadow: 0 0 0 2px #7768df22;
+}
+.cardselect {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #687894;
+  margin: 10px 0 0;
+  cursor: pointer;
+}
+.cardselect input {
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  accent-color: #5c50d9;
+}
+.card.dragging {
+  opacity: 0.34;
+}
+.drag-preview {
+  border-color: #7466dd;
+  transform: rotate(1deg);
+}
+.overlay:has(.drawer) {
+  justify-content: flex-end;
+  padding: 0;
+}
+.drawer {
+  width: min(680px, 100vw);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  margin: 0;
+  border-radius: 16px 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -12px 0 70px #14234040;
+}
+.drawerhead {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 22px 28px 16px;
+  border-bottom: 1px solid #e4eaf2;
+  background: #fff;
+}
+.drawerhead small {
+  color: #6b5ddb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.drawerhead h2 {
+  margin: 7px 0 0;
+  font-size: 21px;
+  line-height: 1.35;
+}
+.drawerhead .close {
+  position: static;
+  flex: none;
+  font-size: 25px;
+  padding: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+.drawerhead .close:hover {
+  background: #f1f3f8;
+}
+.drawerbody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 28px 28px;
+}
+.drawerbody form {
+  display: grid;
+  gap: 4px;
+}
+.drawerbody form > label {
+  margin-top: 12px;
+}
+.drawerbody textarea {
+  min-height: 110px;
+}
+.descriptionpreview {
+  border: 1px solid #e0e7f1;
+  border-radius: 10px;
+  padding: 11px 14px;
+  background: #f8f9fd;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.descriptionpreview summary {
+  cursor: pointer;
+  color: #5445c5;
+  font-weight: 700;
+}
+.descriptionpreview > div {
+  max-height: 220px;
+  overflow: auto;
+}
+.drawerfooter {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 28px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid #e4eaf2;
+  background: white;
+  box-shadow: 0 -8px 18px #15284209;
+}
+.drawerfooter button {
+  font-size: 12px;
+  padding: 9px 12px;
+}
+.dialog {
+  border: 1px solid #e1e7f0;
+  box-shadow: 0 24px 70px #17274438;
+}
+.dialogintro {
+  margin: 0 0 16px;
+  color: #687893;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pickeroptions {
+  display: grid;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+}
+.pickeroption {
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  background: #fff;
+  color: #2e405d;
+  font-size: 13px;
+  font-weight: 550;
+  padding: 11px 12px;
+}
+.pickeroption:hover {
+  background: #f3f5fb;
+}
+.pickeroption.selected {
+  background: #efecff;
+  color: #5545c8;
+  font-weight: 700;
+}
+.sprint {
+  padding: 22px;
+}
+.sprint .pagetitle {
+  align-items: flex-start;
+}
+.sprint .pagetitle h2 {
+  font-size: 18px;
+  margin: 0 0 9px;
+}
+.sprint .pagetitle p {
+  max-width: 760px;
+  line-height: 1.5;
+}
+.sprintmetrics {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 18px 0;
+}
+.sprintmetrics > div {
+  min-width: 90px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #f5f7fb;
+  display: grid;
+  gap: 4px;
+}
+.sprintmetrics strong {
+  font-size: 20px;
+}
+.sprintmetrics span {
+  color: #687892;
+  font-size: 11px;
+}
+.sprintmetrics .sprintprogress {
+  flex: 1;
+  min-width: 130px;
+  align-content: center;
+}
+.sprinttasks {
+  border-top: 1px solid #e5eaf2;
+  padding-top: 12px;
+}
+.sprinttasks summary {
+  cursor: pointer;
+  color: #594bc8;
+  font-size: 13px;
+  font-weight: 700;
+}
+.badge.active {
+  background: #ddf5e9;
+  color: #267253;
+}
+.badge.completed {
+  background: #e7ecf4;
+  color: #526681;
+}
+.boot-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 35%, #eeeaff, #f7f9fd 55%);
+}
+.boot-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #25344b;
+  font-size: 24px;
+}
+.boot-brand > span {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  background: #5c50d9;
+  color: white;
+  font-size: 30px;
+}
+.boot-brand small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: #74819c;
+}
+.boot-progress {
+  width: min(240px, 70vw);
+  height: 4px;
+  background: #e2ddfa;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.boot-progress span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  background: #6456db;
+  border-radius: inherit;
+  animation: boot-slide 1.2s ease-in-out infinite alternate;
+}
+.boot-screen p {
+  color: #75819a;
+  font-size: 13px;
+  margin: 0;
+}
+@keyframes boot-slide {
+  to {
+    transform: translateX(165%);
+  }
+}
+@media (max-width: 1000px) {
+  aside {
+    width: 205px;
+  }
+  main {
+    padding-inline: 20px;
+  }
+  .filtercontrols {
+    grid-template-columns: repeat(3, minmax(125px, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  aside {
+    width: min(300px, calc(100vw - 44px));
+  }
+  main {
+    padding-inline: 16px;
+  }
+  .filters {
+    padding: 11px;
+  }
+  .filtercontrols {
+    display: none;
+  }
+  .filtercontrols.expanded {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px;
+  }
+  .filtercontrols label,
+  .filters .datefilter {
+    width: 100%;
+    font-size: 11px;
+  }
+  .filtercontrols label input,
+  .filtercontrols label select {
+    font-size: 16px;
+  }
+  .boardtoolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .projectactions {
+    flex: 1;
+  }
+  .projectactions summary {
+    justify-content: center;
+    min-height: 44px;
+  }
+  .projectactions > div {
+    right: 0;
+  }
+  .boardtoolactions {
+    width: 100%;
+  }
+  .boardtoolactions label {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .boardtoolactions select {
+    flex: 1;
+  }
+  .drawer {
+    width: 100%;
+    border-radius: 0;
+    max-height: 100dvh;
+  }
+  .drawerhead {
+    padding: 16px;
+  }
+  .drawerhead h2 {
+    font-size: 17px;
+  }
+  .drawerbody {
+    padding: 12px 16px 24px;
+  }
+  .drawerfooter {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  }
+  .drawerfooter button {
+    flex: 1;
+    white-space: nowrap;
+  }
+  .sprintmetrics {
+    flex-wrap: wrap;
+  }
+  .sprintmetrics > div {
+    flex: 1;
+  }
+}
